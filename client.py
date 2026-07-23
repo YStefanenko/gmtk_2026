@@ -28,6 +28,9 @@ pygame.display.set_caption("Your moves are running out")
 
 FPS = 60
 
+# for i in range(24):
+#     print(f"{[0 for j in range(24)]},")
+
 
 def main():
     clock = pygame.time.Clock()

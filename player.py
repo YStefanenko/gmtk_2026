@@ -12,6 +12,7 @@ class Player:
         self.move_suggestions = np.array([])
         self.move_animation = 0
         self.scene = scene
+        self.frame = 0
 
     def update_speed(self, speed):
         self.speed = speed
@@ -94,6 +95,8 @@ class Player:
                 self.move_animation = 0
                 self.update_move_suggestion(opengl_manager.convert_mouse(pygame.mouse.get_pos()))
 
+        self.frame += 1
+
     def move(self, direction=None):
         if direction is None:
             direction = self.direction
@@ -110,10 +113,24 @@ class Player:
             move_progress = 3 * self.move_animation ** 2 - 2 * self.move_animation ** 3
             px, py = self.new_position * move_progress + self.position * (1 - move_progress)
 
-        bx, by = self.scene.grid_to_screen((px + 0.1, py + 0.1))
-        tx, ty = self.scene.grid_to_screen((px + 0.9, py + 0.9))
-
-        points = [(bx, by), (tx, by), (tx, ty), (bx, ty)]
-
-        opengl_manager.draw_polygon(points, (0, 0, 1, 1))
-        opengl_manager.draw_lines(points, (0, 0, 0, 1), width=3, loop=True)
+        # bx, by = self.scene.grid_to_screen((px + 0.1, py + 0.1))
+        # tx, ty = self.scene.grid_to_screen((px + 0.9, py + 0.9))
+        #
+        # points = [(bx, by), (tx, by), (tx, ty), (bx, ty)]
+        #
+        # opengl_manager.draw_polygon(points, (0, 0, 1, 1))
+        # opengl_manager.draw_lines(points, (0, 0, 0, 1), width=3, loop=True)
+        # if self.new_position is None:
+        #     costume = f"mouse{int(self.frame/3) % 6 + 1}"
+        # else:
+        if self.direction[0] == 0:
+            if self.direction[1] > 0:
+                costume = f"mouse{int(self.frame / 5) % 6 + 13}"
+            else:
+                costume = f"mouse{int(self.frame / 5) % 6 + 7}"
+        else:
+            if self.direction[0] > 0:
+                costume = f"mouse{int(self.frame / 5) % 6 + 1}"
+            else:
+                costume = f"mouse{int(self.frame / 5) % 6 + 19}"
+        opengl_manager.draw_image(costume, self.scene.grid_to_screen((px + 0.5, py + 0.5)), (self.scene.cell_w * 4/3, self.scene.cell_h * 4/3))

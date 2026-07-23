@@ -9,6 +9,14 @@ from player import Player
 class GameScene:
     def __init__(self):
         opengl_manager.clear_images()
+        opengl_manager.load_image('tile1', 'assets/tile1.png')
+        opengl_manager.load_image('tile2', 'assets/tile2.png')
+        opengl_manager.load_image('wall1', 'assets/wall1.png')
+
+        for i in range(1, 25):
+            image = pygame.image.load(f"assets/mouse{i}.png")
+            image = pygame.transform.scale(image, (128, 128))
+            opengl_manager.load_pygame_surface(f"mouse{i}", image)
 
         self.player = Player((0, 0), self)
 
@@ -83,32 +91,18 @@ class GameScene:
         # Render grid
         rows, cols = self.level.shape
 
-        empty_color = (0.16, 0.17, 0.22, 0.5)
-        wall_color = (0.85, 0.80, 0.55, 0.8)
-        line_color = (0.35, 0.37, 0.45, 1.0)
-
-        x_left, y_bottom = self.grid_to_screen((0, 0))
-        x_right, y_top = self.grid_to_screen((cols, rows))
-
-        # Grid lines first, so the cells draw on top of them.
-        for c in range(cols + 1):
-            x, _ = self.grid_to_screen((c, 0))
-            opengl_manager.draw_lines([(x, y_bottom), (x, y_top)], line_color, 2)
-        for r in range(rows + 1):
-            _, y = self.grid_to_screen((0, r))
-            opengl_manager.draw_lines([(x_left, y), (x_right, y)], line_color, 2)
-
         for r in range(rows):
             for c in range(cols):
-                bx, by = self.grid_to_screen((c, r))
-                tx, ty = self.grid_to_screen((c + 1, r + 1))
+                position = self.grid_to_screen((c + 0.5, r + 0.5))
 
-                points = [(bx, by), (tx, by), (tx, ty), (bx, ty)]
-
-                color = wall_color if self.level[r][c] else empty_color
-                opengl_manager.draw_polygon(points, color)
+                if self.level[r][c] == 1:
+                    costume = f"wall1"
+                else:
+                    costume = f"tile{(r+c)%2 + 1}"
+                opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
 
         # Render player
         if self.player.new_position is None:
             self.player.render_move_suggestion()
+
         self.player.render()
