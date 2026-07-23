@@ -259,105 +259,6 @@ class OpenglManager:
             glEnd()
         glColor4f(1.0, 1.0, 1.0, 1.0)
 
-    def draw_image_ingame(self, name, position, size, alpha=None, direction=None):
-        if alpha:
-            glColor4f(1.0, 1.0, 1.0, alpha)
-        texture_id = self.textures[name]
-        glEnable(GL_TEXTURE_2D)
-        glBindTexture(GL_TEXTURE_2D, texture_id)
-
-        glBegin(GL_QUADS)
-        if direction is None:
-            glTexCoord2f(0, 0);
-            glVertex2f((position[0] - size[0] / 2) / self.map_size[0],
-                       1 - (position[1] + size[1] / 2) / self.map_size[1])
-            glTexCoord2f(1, 0);
-            glVertex2f((position[0] + size[0] / 2) / self.map_size[0],
-                       1 - (position[1] + size[1] / 2) / self.map_size[1])
-            glTexCoord2f(1, 1);
-            glVertex2f((position[0] + size[0] / 2) / self.map_size[0],
-                       1 - (position[1] - size[1] / 2) / self.map_size[1])
-            glTexCoord2f(0, 1);
-            glVertex2f((position[0] - size[0] / 2) / self.map_size[0],
-                       1 - (position[1] - size[1] / 2) / self.map_size[1])
-        else:
-            position = np.array([position[0], self.map_size[1] - position[1]])
-            direction = np.array([direction[0], -direction[1]])
-            perp = np.array([-direction[1], direction[0]])
-
-            glTexCoord2f(0, 0);
-            glVertex2f(*((position - size[0] / 2 * direction + size[1] / 2 * perp) / self.map_size))
-            glTexCoord2f(1, 0);
-            glVertex2f(*((position + size[0] / 2 * direction + size[1] / 2 * perp) / self.map_size))
-            glTexCoord2f(1, 1);
-            glVertex2f(*((position + size[0] / 2 * direction - size[1] / 2 * perp) / self.map_size))
-            glTexCoord2f(0, 1);
-            glVertex2f(*((position - size[0] / 2 * direction - size[1] / 2 * perp) / self.map_size))
-
-        glEnd()
-
-        glDisable(GL_TEXTURE_2D)
-        glColor4f(1.0, 1.0, 1.0, 1.0)
-
-    def draw_lines_ingame(self, points, color, width, loop=False, smooth=2):
-        # Smooth points
-        def chaikin_smooth(points, iterations=2):
-            if points.shape[0] < 2:
-                return points
-
-            for _ in range(iterations):
-                p0 = points[:-1]
-                p1 = points[1:]
-                q = 0.75 * p0 + 0.25 * p1
-                r = 0.25 * p0 + 0.75 * p1
-                new_points = np.empty((q.shape[0] * 2 + 2, 2), dtype=np.float32)
-                new_points[0] = points[0]
-                new_points[-1] = points[-1]
-                new_points[1:-1:2] = q
-                new_points[2:-1:2] = r
-                points = new_points
-
-            return points
-
-        points = np.array(points)
-
-        if not points.size:
-            return
-
-        if smooth and width and not loop:
-            points = chaikin_smooth(points, iterations=smooth)
-
-        points = points / self.inv_map_size + np.array([0, 1])
-
-        glColor4f(*color)
-        if width != 0:
-            glLineWidth(width)
-        if loop and width:
-            glBegin(GL_LINE_LOOP)
-        elif width == 0:
-            glBegin(GL_POLYGON)
-        else:
-            glBegin(GL_LINE_STRIP)
-
-        for point in points:
-            glVertex2f(point[0], point[1])
-        glEnd()
-        glColor4f(1.0, 1.0, 1.0, 1.0)
-
-    def draw_circle_ingame(self, position, radius, color):
-        position = position / self.inv_map_size + np.array([0, 1])
-
-        glColor4f(*color)
-        glBegin(GL_TRIANGLE_FAN)
-        glVertex2f(position[0], position[1])
-        for i in range(33):
-            angle = 2 * 3.1415926 * i / 32
-            dx = math.cos(angle) * radius / self.map_size[0]
-            dy = math.sin(angle) * radius / self.map_size[1]
-            glVertex2f(position[0] + dx, position[1] + dy)
-        glEnd()
-        glColor4f(1.0, 1.0, 1.0, 1.0)
-
     def load_pygame_surface(self, name, surface):
         surface = surface.convert_alpha()
         width, height = surface.get_size()
@@ -417,36 +318,11 @@ class OpenglManager:
         surface = pygame.transform.flip(surface, False, True)
         return surface
 
-    def load_text(self, text, color, size, position, name, outline=0, outline_color=(0, 0, 0), fix=None, width_limit=1,
-                  font=None, direction=None):
+    def load_text(self, text, color, size, position, name, outline=0, outline_color=(0, 0, 0), fix=None, width_limit=1, font=None, direction=None):
 
         px_size = max(1, int(round(size * self.screen_size[1] / 864)))
 
-        is_cjk = False
-        if font is None:
-            has_kana = any('\u3040' <= c <= '\u30ff' for c in text)  # hira/kata = Japanese only
-            has_han = any('\u4e00' <= c <= '\u9fff'
-                          or '\uff00' <= c <= '\uffef' for c in text)  # kanji/hanzi + full-width punct
-            has_hangul = any('\uac00' <= c <= '\ud7af'
-                             or '\u1100' <= c <= '\u11ff' for c in text)  # Hangul syllables + jamo
-            if has_hangul:
-                font_name = "malgungothic,applegothic,notosanscjkkr,notosanskr,gulim"
-                is_cjk = True
-            elif has_kana:
-                font_name = "yugothic,meiryo,msgothic,notosanscjkjp,hiraginokakugothicpro"
-                is_cjk = True
-            elif has_han:
-                font_name = "microsoftyahei,pingfangsc,notosanscjksc,simhei,simsun"
-                is_cjk = True
-            else:
-                font_name = "Arial"
-        else:
-            font_name = font
-
-        try:
-            font = pygame.font.SysFont(font_name, px_size)
-        except TypeError:
-            font = pygame.font.Font(pygame.font.get_default_font(), px_size)
+        font = pygame.font.Font("./assets/ari-w9500.ttf", px_size)
 
         base = font.render(text, True, color)
         text_size = base.get_size()
@@ -473,14 +349,10 @@ class OpenglManager:
         else:
             text_surface = base
 
-        if is_cjk:
-            bounds = text_surface.get_bounding_rect()
-            # vertical slack above vs below the actual ink
-            shift = (text_surface.get_height() - bounds.height) // 2 - bounds.top
-            if shift:
-                recentered = pygame.Surface(text_surface.get_size(), pygame.SRCALPHA)
-                recentered.blit(text_surface, (0, shift))
-                text_surface = recentered
+        # Trim the transparent padding so the texture hugs the actual glyphs.
+        crop = text_surface.get_bounding_rect(min_alpha=1)
+        if crop.width and crop.height:
+            text_surface = text_surface.subsurface(crop).copy()
 
         px_w, px_h = text_surface.get_size()
 
@@ -852,85 +724,5 @@ class OpenglManager:
         glEnd()
 
         glUseProgram(0)
-
-    def draw_textured_line_ingame(self, points, thickness, color=(0.12, 0.08, 0.04)):
-        if len(points) < 2:
-            return
-
-        pts = [p / self.inv_map_size + np.array([0, 1]) for p in points]
-        n = len(pts)
-        tx = thickness / self.map_size[0]  # OpenGL unit in x
-        ty = thickness / self.map_size[1]  # OpenGL unit in y
-
-        dists = [0.0]
-        for i in range(1, n):
-            dists.append(dists[-1] + np.linalg.norm(pts[i] - pts[i - 1]))
-        total = dists[-1]
-        if total < 1e-9:
-            return
-
-        def seg_dir(a, b):
-            d = b - a
-            l = np.linalg.norm(d)
-            return d / l if l > 1e-9 else np.array([1.0, 0.0])
-
-        dirs = [seg_dir(pts[i], pts[i + 1]) for i in range(n - 1)]
-
-        def perp_of(t):
-            # x component uses tx, y component uses ty — this gives constant
-            # visual width regardless of the line's direction
-            return np.array([-t[1] * tx, t[0] * ty])
-
-        def miter_at(i):
-            if i == 0:
-                t = dirs[0]
-            elif i == n - 1:
-                t = dirs[-1]
-            else:
-                t = dirs[i - 1] + dirs[i]
-                tl = np.linalg.norm(t)
-                t = t / tl if tl > 1e-9 else dirs[i]
-
-            perp = perp_of(t)
-
-            if 0 < i < n - 1:
-                ref = perp_of(dirs[i - 1])
-                ref_len = np.linalg.norm(ref)
-                p_len = np.linalg.norm(perp)
-                if ref_len > 1e-9 and p_len > 1e-9:
-                    cos_a = np.dot(perp / p_len, ref / ref_len)
-                    if cos_a > 0.12:
-                        perp = perp * (ref_len / p_len) / cos_a
-                        ml = np.linalg.norm(perp)
-                        if ml > max(tx, ty) * 4.0:
-                            perp = perp / ml * max(tx, ty) * 4.0
-
-            return perp
-
-        offsets = [miter_at(i) for i in range(n)]
-
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glUseProgram(self._line_shader)
-        glUniform3f(self._line_u_color, *color)
-
-        glBegin(GL_QUADS)
-        for i in range(n - 1):
-            p0, p1 = pts[i], pts[i + 1]
-            o0, o1 = offsets[i], offsets[i + 1]
-            u0, u1 = dists[i] / total, dists[i + 1] / total
-
-            glTexCoord2f(u0, -1.0);
-            glVertex2f(p0[0] - o0[0], p0[1] - o0[1])
-            glTexCoord2f(u1, -1.0);
-            glVertex2f(p1[0] - o1[0], p1[1] - o1[1])
-            glTexCoord2f(u1, 1.0);
-            glVertex2f(p1[0] + o1[0], p1[1] + o1[1])
-            glTexCoord2f(u0, 1.0);
-            glVertex2f(p0[0] + o0[0], p0[1] + o0[1])
-        glEnd()
-
-        glUseProgram(0)
-
 
 opengl_manager = OpenglManager()

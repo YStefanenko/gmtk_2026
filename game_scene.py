@@ -4,6 +4,7 @@ from opengl_manager import opengl_manager
 import numpy as np
 from levels import levels
 from player import Player
+from timer import Timer
 
 
 class GameScene:
@@ -18,13 +19,30 @@ class GameScene:
             image = pygame.transform.scale(image, (128, 128))
             opengl_manager.load_pygame_surface(f"mouse{i}", image)
 
-        self.player = Player((0, 0), self)
-
         self.level = np.array(levels['0'][::-1])
-        self.change_scene = None
 
         self.cell_w = self.cell_h = self.offset_x = self.offset_y = 0
         self.calculate_grid()
+
+        self.player = Player((0, 0), self)
+
+        self.selected_timer = 0
+
+        # Stack timers in a vertical column just to the right of the grid.
+        timer_values = [5, 4, 3]
+        timer_size = 0.15
+        timer_radius_x = timer_size / 2 * 9 / 16
+        grid_right = 1 - self.offset_x
+        column_x = grid_right + timer_radius_x + 0.01  # almost touching the grid
+        spacing = timer_size + 0.05
+        top_y = 0.85
+        self.timers = [Timer(value, i,(column_x, top_y - i * spacing), size=timer_size) for i, value in enumerate(timer_values)]
+
+        self.player.speed = self.timers[self.selected_timer].value
+
+        self.change_scene = None
+
+
 
     def calculate_grid(self):
         rows, cols = self.level.shape
@@ -58,27 +76,65 @@ class GameScene:
 
             elif event.type == pygame.MOUSEMOTION:
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
-                if self.player.new_position is None:
+                over_grid = (self.offset_x <= mouse[0] <= 1 - self.offset_x and
+                             self.offset_y <= mouse[1] <= 1 - self.offset_y)
+                if over_grid and self.player.new_position is None:
                     self.player.update_move_suggestion(mouse)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
-                self.player.move()
+                mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+                for timer in self.timers:
+                    if timer.is_pressed(mouse):
+                        self.selected_timer = timer.index
+                        self.player.speed = timer.value
+                        self.player.update_move_suggestion()
+                        break
+                else:
+                    if self.player.speed > 0:
+                        moved = self.player.move()
+                        if moved:
+                            self.timers[self.selected_timer].tick()
+                            self.player.speed = self.timers[self.selected_timer].value
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     overlay_manager.open_ec("close the game")
 
                 elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                    self.player.move()
+                    if self.player.speed > 0:
+                        moved = self.player.move()
+                        if moved:
+                            self.timers[self.selected_timer].tick()
+                            self.player.speed = self.timers[self.selected_timer].value
 
                 elif event.key in (pygame.K_w, pygame.K_UP):
-                    self.player.move(np.array((0, 1)))
+                    if self.player.speed > 0:
+                        moved = self.player.move(np.array((0, 1)))
+                        if moved:
+                            self.timers[self.selected_timer].tick()
+                            self.player.speed = self.timers[self.selected_timer].value
+
                 elif event.key in (pygame.K_s, pygame.K_DOWN):
-                    self.player.move(np.array((0, -1)))
+                    if self.player.speed > 0:
+                        moved = self.player.move(np.array((0, -1)))
+                        if moved:
+                            self.timers[self.selected_timer].tick()
+                            self.player.speed = self.timers[self.selected_timer].value
+
                 elif event.key in (pygame.K_a, pygame.K_LEFT):
-                    self.player.move(np.array((-1, 0)))
+                    if self.player.speed > 0:
+                        moved = self.player.move(np.array((-1, 0)))
+                        if moved:
+                            self.timers[self.selected_timer].tick()
+                            self.player.speed = self.timers[self.selected_timer].value
+
                 elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                    self.player.move(np.array((1, 0)))
+                    if self.player.speed > 0:
+                        moved = self.player.move(np.array((1, 0)))
+                        if moved:
+                            self.timers[self.selected_timer].tick()
+                            self.player.speed = self.timers[self.selected_timer].value
+
 
         return 1
 
@@ -102,7 +158,10 @@ class GameScene:
                 opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
 
         # Render player
-        if self.player.new_position is None:
-            self.player.render_move_suggestion()
+        self.player.render_move_suggestion()
 
         self.player.render()
+
+        # Render timers
+        for timer in self.timers:
+            timer.render(print_as_selected=(timer.index == self.selected_timer))

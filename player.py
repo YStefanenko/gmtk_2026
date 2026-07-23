@@ -44,23 +44,24 @@ class Player:
 
         return 1
 
-    def update_move_suggestion(self, mouse):
-        screen_position = self.scene.grid_to_screen(self.position + np.array([0.5, 0.5]))
+    def update_move_suggestion(self, mouse=None):
+        if mouse is not None:
+            screen_position = self.scene.grid_to_screen(self.position + np.array([0.5, 0.5]))
 
-        offset = mouse - screen_position
+            offset = mouse - screen_position
 
-        if abs(offset[0]) > abs(offset[1]):
-            if offset[0] > 0:
-                self.direction = (1, 0)
+            if abs(offset[0]) > abs(offset[1]):
+                if offset[0] > 0:
+                    self.direction = (1, 0)
+                else:
+                    self.direction = (-1, 0)
             else:
-                self.direction = (-1, 0)
-        else:
-            if offset[1] > 0:
-                self.direction = (0, 1)
-            else:
-                self.direction = (0, -1)
+                if offset[1] > 0:
+                    self.direction = (0, 1)
+                else:
+                    self.direction = (0, -1)
 
-        self.direction = np.array(self.direction)
+            self.direction = np.array(self.direction)
 
         suggestions = self.generate_suggestions(self.direction)
 
@@ -93,7 +94,7 @@ class Player:
                 self.position = self.new_position
                 self.new_position = None
                 self.move_animation = 0
-                self.update_move_suggestion(opengl_manager.convert_mouse(pygame.mouse.get_pos()))
+                self.update_move_suggestion()
 
         self.frame += 1
 
@@ -104,7 +105,11 @@ class Player:
         if self.move_possible(direction=direction):
             self.direction = direction
             self.new_position = self.position + self.speed * self.direction
+            self.update_move_suggestion()
             self.move_animation = 0
+            return 1
+        else:
+            return 0
 
     def render(self):
         if self.new_position is None:
