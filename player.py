@@ -10,6 +10,7 @@ class Player:
         self.direction = np.array((1, 0))
         self.speed = 5
         self.move_suggestions = np.array([])
+        self.selected_suggestions = np.array([])
         self.move_animation = 0
         self.scene = scene
         self.frame = 0
@@ -21,7 +22,7 @@ class Player:
         self.direction = np.array(direction)
 
     def generate_suggestions(self, direction):
-        return self.position + direction[None, :] * np.arange(0, self.speed + 1)[:, None]
+        return self.position + direction[None, :] * np.arange(1, self.speed + 1)[:, None]
 
     def move_possible(self, direction=None):
         if direction is None:
@@ -63,27 +64,45 @@ class Player:
 
             self.direction = np.array(self.direction)
 
-        suggestions = self.generate_suggestions(self.direction)
-
-        # Keep only the cells that lie on the board.
         rows, cols = self.scene.level.shape
-        xs, ys = suggestions[:, 0], suggestions[:, 1]
-        on_board = (xs >= 0) & (xs < cols) & (ys >= 0) & (ys < rows)
-        self.move_suggestions = suggestions[on_board]
+
+        def filter_on_board(suggestions):
+            if len(suggestions) == 0:
+                return suggestions
+            xs, ys = suggestions[:, 0], suggestions[:, 1]
+            on_board = (xs >= 0) & (xs < cols) & (ys >= 0) & (ys < rows)
+            return suggestions[on_board]
+
+        self.selected_suggestions = filter_on_board(self.generate_suggestions(self.direction))
+
+        all_suggestions = []
+        for direction in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            if tuple(self.direction) == direction:
+                continue
+            filtered = filter_on_board(self.generate_suggestions(np.array(direction)))
+            if len(filtered) > 0:
+                all_suggestions.append(filtered)
+
+        self.move_suggestions = np.concatenate(all_suggestions) if all_suggestions else np.empty((0, 2), dtype=int)
+
 
     def render_move_suggestion(self):
+        # All
         for cell in self.move_suggestions:
-            bx, by = self.scene.grid_to_screen(cell + np.array([0.1, 0.1]))
-            tx, ty = self.scene.grid_to_screen(cell + np.array([0.9, 0.9]))
+            position = self.scene.grid_to_screen(cell + np.array([0.5, 0.5]))
 
-            points = [(bx, by), (tx, by), (tx, ty), (bx, ty)]
+            opengl_manager.draw_image('grey_gear', position, (self.scene.cell_w, self.scene.cell_h))
+
+        # Highlighted
+        for cell in self.selected_suggestions:
+            position = self.scene.grid_to_screen(cell + np.array([0.5, 0.5]))
 
             if self.move_possible():
-                color = (0, 1, 0, 0.3)
+                color = 'green_gear'
             else:
-                color = (1, 0, 0, 0.3)
+                color = 'red_gear'
 
-            opengl_manager.draw_polygon(points, color)
+            opengl_manager.draw_image(color, position, (self.scene.cell_w, self.scene.cell_h))
 
         return
 
@@ -99,11 +118,15 @@ class Player:
         self.frame += 1
 
     def move(self, direction=None):
+        if self.new_position is not None:
+            return 0
+
         if direction is None:
             direction = self.direction
+        else:
+            self.direction = direction
 
         if self.move_possible(direction=direction):
-            self.direction = direction
             self.new_position = self.position + self.speed * self.direction
             self.update_move_suggestion()
             self.move_animation = 0
@@ -128,6 +151,7 @@ class Player:
         # if self.new_position is None:
         #     costume = f"mouse{int(self.frame/3) % 6 + 1}"
         # else:
+        opengl_manager.draw_image('player_shadow', self.scene.grid_to_screen((px + 0.5, py + 0.5)), (self.scene.cell_w * 4/3, self.scene.cell_h * 4/3))
         if self.direction[0] == 0:
             if self.direction[1] > 0:
                 costume = f"mouse{int(self.frame / 5) % 6 + 13}"

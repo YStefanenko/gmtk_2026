@@ -8,38 +8,87 @@ from timer import Timer
 
 
 class GameScene:
-    def __init__(self):
+    def __init__(self, level):
+        print(level)
         opengl_manager.clear_images()
-        opengl_manager.load_image('tile1', 'assets/tile1.png')
-        opengl_manager.load_image('tile2', 'assets/tile2.png')
-        opengl_manager.load_image('wall1', 'assets/wall1.png')
+
+        for asset in ['green_gear', 'red_gear', 'grey_gear', 'finish_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow']:
+            image = pygame.image.load(f"assets/{asset}.png")
+            image = pygame.transform.scale(image, (96, 96))
+            opengl_manager.load_pygame_surface(asset, image)
+
+        for name in ['tbar', 'ybar', 'bbar']:
+            for i in range(1, 7):
+                image = pygame.image.load(f"assets/{name}{i}.png")
+                image = pygame.transform.scale(image, (96, 96))
+                opengl_manager.load_pygame_surface(f"{name}{i}", image)
+
+        for i in range(0, 11):
+            image = pygame.image.load(f"assets/clock{i}.png")
+            image = pygame.transform.scale(image, (96, 96))
+            opengl_manager.load_pygame_surface(f"clock{i}", image)
+
+        for i in range(0, 11):
+            image = pygame.image.load(f"assets/clock{i}p.png")
+            image = pygame.transform.scale(image, (96, 96))
+            opengl_manager.load_pygame_surface(f"clock{i}p", image)
+
+        for i in range(0, 10):
+            image = pygame.image.load(f"assets/lfloor{i}.png")
+            image = pygame.transform.scale(image, (96, 96))
+            opengl_manager.load_pygame_surface(f"lfloor{i}", image)
+
+        for i in range(0, 10):
+            image = pygame.image.load(f"assets/dfloor{i}.png")
+            image = pygame.transform.scale(image, (96, 96))
+            opengl_manager.load_pygame_surface(f"dfloor{i}", image)
+
+        for i in range(0, 22):
+            if i == 17 or i == 20:
+                continue
+            image = pygame.image.load(f"assets/wall{i}.png")
+            image = pygame.transform.scale(image, (96, 96))
+            opengl_manager.load_pygame_surface(f"wall{i}", image)
+
+        for i in range(0, 4):
+            image = pygame.image.load(f"assets/top{i}.png")
+            image = pygame.transform.scale(image, (96, 96))
+            opengl_manager.load_pygame_surface(f"top{i}", image)
 
         for i in range(1, 25):
             image = pygame.image.load(f"assets/mouse{i}.png")
             image = pygame.transform.scale(image, (128, 128))
             opengl_manager.load_pygame_surface(f"mouse{i}", image)
 
-        self.level = np.array(levels['0'][::-1])
+        self.level = np.array(levels[str(level)]['grid'][::-1])
+
+        self.start = np.where(self.level == 2)
+        self.start = (self.start[1][0], self.start[0][0])
+        self.level[self.start[1], self.start[0]] = 0
+
+        self.finish = np.where(self.level == 3)
+        self.finish = (self.finish[1][0], self.finish[0][0])
+        self.level[self.finish[1], self.finish[0]] = 0
 
         self.cell_w = self.cell_h = self.offset_x = self.offset_y = 0
         self.calculate_grid()
 
-        self.player = Player((0, 0), self)
+        self.player = Player(self.start, self)
 
         self.selected_timer = 0
 
         # Stack timers in a vertical column just to the right of the grid.
-        timer_values = [5, 4, 3]
-        timer_size = 0.15
-        timer_radius_x = timer_size / 2 * 9 / 16
-        grid_right = 1 - self.offset_x
-        column_x = grid_right + timer_radius_x + 0.01  # almost touching the grid
-        spacing = timer_size + 0.05
-        top_y = 0.85
-        self.timers = [Timer(value, i,(column_x, top_y - i * spacing), size=timer_size) for i, value in enumerate(timer_values)]
+        timer_values = levels[str(level)]['timers']
+        centre_x = 0.5
+        timer_y = self.grid_to_screen((0, self.level.shape[1] + 3))[1]
+        n = len(timer_values)
+        spacing = self.cell_w * 1.5
+        left_x = centre_x - (n - 1) * spacing / 2
+        self.timers = [Timer(value, (left_x + i * spacing, timer_y), (self.cell_w * 2, self.cell_h * 2)) for i, value in enumerate(timer_values)]
 
         self.player.speed = self.timers[self.selected_timer].value
 
+        self.next_level = level
         self.change_scene = None
 
 
@@ -47,12 +96,18 @@ class GameScene:
     def calculate_grid(self):
         rows, cols = self.level.shape
 
+        rows += 5
+        cols += 2
+
         # A physically square cell is (9/16, 1) in this 1x1 / 16:9 space.
         # Fill 90% of the limiting screen dimension; the other stays smaller.
-        self.cell_h = min(0.9 / rows, 0.9 * 16 / 9 / cols)
+        self.cell_h = min(0.95 / rows, 0.9 * 16 / 9 / cols)
         self.cell_w = self.cell_h * 9 / 16
         self.offset_x = (1 - cols * self.cell_w) / 2
         self.offset_y = (1 - rows * self.cell_h) / 2
+
+        self.offset_x += self.cell_w
+        self.offset_y += self.cell_h
 
     def grid_to_screen(self, grid_pos):
         """Grid cell corner (col, row) -> screen coordinate (x, y)."""
@@ -67,6 +122,10 @@ class GameScene:
         return col, row
 
     def event_check(self, events):
+        if self.player.position[0] == self.finish[0] and self.player.position[1] == self.finish[1]:
+            self.next_level += 1
+            self.change_scene = 'game'
+
         for event in events:
             if event.type == pygame.QUIT:
                 return 0
@@ -83,10 +142,10 @@ class GameScene:
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
-                for timer in self.timers:
-                    if timer.is_pressed(mouse):
-                        self.selected_timer = timer.index
-                        self.player.speed = timer.value
+                for i in range(len(self.timers)):
+                    if self.timers[i].is_pressed(mouse):
+                        self.selected_timer = i
+                        self.player.speed = self.timers[i].value
                         self.player.update_move_suggestion()
                         break
                 else:
@@ -135,6 +194,9 @@ class GameScene:
                             self.timers[self.selected_timer].tick()
                             self.player.speed = self.timers[self.selected_timer].value
 
+                elif event.key == pygame.K_r:
+                    self.change_scene = 'game'
+
 
         return 1
 
@@ -144,24 +206,215 @@ class GameScene:
     def render(self):
         opengl_manager.clear_screen()
 
+        opengl_manager.draw_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], (0.271, 0.157, 0.235, 1))
+
         # Render grid
         rows, cols = self.level.shape
 
-        for r in range(rows):
+        # Floor tiles
+        for r in range(rows-1, -1, -1):
+            for c in range(cols):
+                position = self.grid_to_screen((c + 0.5, r + 0.5))
+
+                if self.level[r][c] == 0:
+                    if (r + c) % 2 == 0:
+                        costume = f"lfloor"
+                    else:
+                        costume = f"dfloor"
+
+                    if r == 0:
+                        if c == 0:
+                            costume += "1"
+                        elif c == cols - 1:
+                            costume += "3"
+                        else:
+                            costume += "2"
+
+                    elif r == rows - 1:
+                        if c == 0:
+                            costume += "7"
+                        elif c == cols - 1:
+                            costume += "9"
+                        else:
+                            costume += "8"
+                    elif c == 0:
+                        costume += "4"
+                    elif c == cols - 1:
+                        costume += "6"
+                    else:
+                        costume += "5"
+
+                    opengl_manager.draw_image(costume, position, (self.cell_w, -self.cell_h))
+
+        opengl_manager.draw_image('finish_tile', self.grid_to_screen(self.finish + np.array([0.5, 0.5])), (self.cell_w, -self.cell_h))
+
+        # Render outer stuff
+        for c in range(cols):
+            position = self.grid_to_screen((c + 0.5, -0.5))
+
+            if c % 2 == 0:
+                costume = f"lfloor0"
+            else:
+                costume = f"dfloor0"
+
+            opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
+
+            position = self.grid_to_screen((c + 0.5, rows + 0.5))
+
+            if c % 3 == 0:
+                costume = f"tbar"
+            elif c % 3 == 1:
+                costume = f"bbar"
+            else:
+                costume = f"ybar"
+
+            if c == 0:
+                costume += "4"
+            elif c == cols - 1:
+                costume += "6"
+            else:
+                costume += "5"
+
+            opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
+
+            position = self.grid_to_screen((c + 0.5, rows + 1.5))
+
+            if c % 3 == 0:
+                costume = f"tbar"
+            elif c % 3 == 1:
+                costume = f"bbar"
+            else:
+                costume = f"ybar"
+
+            if c == 0:
+                costume += "1"
+            elif c == cols - 1:
+                costume += "3"
+            else:
+                costume += "2"
+
+            opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
+
+        # Render player
+        self.player.render_move_suggestion()
+        self.player.render()
+
+        # More outer stuff
+        opengl_manager.draw_image('outerwall0', self.grid_to_screen((-0.5, -0.5)), (self.cell_w, self.cell_h))
+        opengl_manager.draw_image('outerwall0', self.grid_to_screen((cols + 0.5, -0.5)), (self.cell_w, self.cell_h))
+        opengl_manager.draw_image('outerwall1', self.grid_to_screen((-0.5, 0.5)), (self.cell_w, self.cell_h))
+        opengl_manager.draw_image('outerwall1', self.grid_to_screen((cols + 0.5, 0.5)), (self.cell_w, self.cell_h))
+        for r in range(1, rows+1):
+            opengl_manager.draw_image('wall11', self.grid_to_screen((-0.5, r + 0.5)), (self.cell_w, self.cell_h))
+            opengl_manager.draw_image('wall11', self.grid_to_screen((cols + 0.5, r + 0.5)), (self.cell_w, self.cell_h))
+        opengl_manager.draw_image('outerwall3', self.grid_to_screen((-0.5, rows + 1.5)), (self.cell_w, self.cell_h))
+        opengl_manager.draw_image('outerwall4', self.grid_to_screen((cols + 0.5, rows + 1.5)), (self.cell_w, self.cell_h))
+
+        # Draw walls
+        for r in range(rows-1, -1, -1):
             for c in range(cols):
                 position = self.grid_to_screen((c + 0.5, r + 0.5))
 
                 if self.level[r][c] == 1:
-                    costume = f"wall1"
-                else:
-                    costume = f"tile{(r+c)%2 + 1}"
-                opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
+                    costume = f"wall"
 
-        # Render player
-        self.player.render_move_suggestion()
+                    neighbours = self.get_neighbourhood(r, c)
 
-        self.player.render()
+                    if neighbours[1] == 1:
+                        if neighbours[3] == 1:
+                            if neighbours[5] == 1:
+                                if neighbours[0] == 1:
+                                    if neighbours[2] == 1:
+                                        costume += "5"
+                                    else:
+                                        costume += "12"
+                                else:
+                                    if neighbours[2] == 1:
+                                        costume += "10"
+                                    else:
+                                        costume += "14"
+                            else:
+                                if neighbours[0] == 1:
+                                    if neighbours[2] == 1:
+                                        costume += "6"
+                                    else:
+                                        costume += "9"
+                                else:
+                                    if neighbours[2] == 1:
+                                        costume += "19"
+                                    else:
+                                        costume += "15"
+
+                        else:
+                            if neighbours[5] == 1:
+                                if neighbours[0] == 1:
+                                    if neighbours[2] == 1:
+                                        costume += "4"
+                                    else:
+                                        costume += "21"
+                                else:
+                                    if neighbours[2] == 1:
+                                        costume += "10"
+                                    else:
+                                        costume += "13"
+                            else:
+                                if neighbours[0] == 1:
+                                    if neighbours[2] == 1:
+                                        costume += "8"
+                                    else:
+                                        costume += "18"
+                                else:
+                                    if neighbours[2] == 1:
+                                        costume += "16"
+                                    else:
+                                        costume += "11"
+                    else:
+                        if neighbours[3] == 1:
+                            if neighbours[5] == 1:
+                                costume += "2"
+                            else:
+                                costume += "3"
+                        elif neighbours[5] == 1:
+                            costume += "1"
+                        else:
+                            costume += "0"
+
+                    opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
+
+        # Wall tops
+        for r in range(rows-1, -1, -1):
+            for c in range(cols):
+                position = self.grid_to_screen((c + 0.5, r + 1.5))
+
+                if self.level[r][c] == 1 and (r == rows - 1 or self.level[r+1][c] == 0):
+                    costume = f"top"
+
+                    if c != 0 and self.level[r][c-1] == 1:
+                        if c < cols - 1 and self.level[r][c + 1] == 1:
+                            costume += "2"
+                        else:
+                            costume += "3"
+                    elif c < cols - 1 and self.level[r][c+1] == 1:
+                        costume += "1"
+                    else:
+                        costume += "0"
+
+                    opengl_manager.draw_image(costume, position, (self.cell_w, self.cell_h))
 
         # Render timers
-        for timer in self.timers:
-            timer.render(print_as_selected=(timer.index == self.selected_timer))
+        for i in range(len(self.timers)):
+            self.timers[i].render(print_as_selected=(i == self.selected_timer))
+
+
+    def get_neighbourhood(self, r, c):
+        rows, cols = len(self.level), len(self.level[0])
+        out = []
+        for rr in (r - 1, r, r + 1):
+            for cc in (c - 1, c, c + 1):
+                if not (0 <= cc < cols):
+                    out.append(0)
+                elif not (0 <= rr < rows):
+                    out.append(0)
+                else:
+                    out.append(self.level[rr][cc])
+        return out
