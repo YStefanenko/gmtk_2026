@@ -1,6 +1,7 @@
 from opengl_manager import opengl_manager
 import numpy as np
 import pygame
+import math
 
 
 class Player:
@@ -9,7 +10,6 @@ class Player:
         self.new_position = None
         self.direction = np.array((1, 0))
         self.speed = 5
-        self.move_suggestions = np.array([])
         self.selected_suggestions = np.array([])
         self.move_animation = 0
         self.scene = scene
@@ -66,43 +66,49 @@ class Player:
 
         rows, cols = self.scene.level.shape
 
-        def filter_on_board(suggestions):
+        def filter_valid(suggestions):
             if len(suggestions) == 0:
                 return suggestions
-            xs, ys = suggestions[:, 0], suggestions[:, 1]
-            on_board = (xs >= 0) & (xs < cols) & (ys >= 0) & (ys < rows)
-            return suggestions[on_board]
+            valid = []
+            for cell in suggestions:
+                x, y = int(cell[0]), int(cell[1])
+                if not (0 <= x < cols and 0 <= y < rows):
+                    break  # off board — stop, don't just skip this one cell
+                if self.scene.level[y, x] == 1:
+                    break  # wall — everything further out is unreachable too
+                valid.append(cell)
+            if not valid:
+                return np.empty((0, 2), dtype=suggestions.dtype)
+            return np.array(valid, dtype=suggestions.dtype)
 
-        self.selected_suggestions = filter_on_board(self.generate_suggestions(self.direction))
-
-        all_suggestions = []
-        for direction in ((1, 0), (-1, 0), (0, 1), (0, -1)):
-            if tuple(self.direction) == direction:
-                continue
-            filtered = filter_on_board(self.generate_suggestions(np.array(direction)))
-            if len(filtered) > 0:
-                all_suggestions.append(filtered)
-
-        self.move_suggestions = np.concatenate(all_suggestions) if all_suggestions else np.empty((0, 2), dtype=int)
+        self.selected_suggestions = filter_valid(self.generate_suggestions(self.direction))
 
 
     def render_move_suggestion(self):
-        # All
-        for cell in self.move_suggestions:
-            position = self.scene.grid_to_screen(cell + np.array([0.5, 0.5]))
+        if len(self.selected_suggestions) == 0:
+            return
 
-            opengl_manager.draw_image('grey_gear', position, (self.scene.cell_w, self.scene.cell_h))
+        move_possible = self.move_possible()
 
-        # Highlighted
-        for cell in self.selected_suggestions:
-            position = self.scene.grid_to_screen(cell + np.array([0.5, 0.5]))
+        direction_names = {
+            (1, 0): 'right',
+            (-1, 0): 'left',
+            (0, -1): 'down',
+            (0, 1): 'up',
+        }
 
-            if self.move_possible():
-                color = 'green_gear'
+        sprite_name = ('green_' if move_possible else 'red_') + direction_names[tuple(self.direction)]
+        last_index = len(self.selected_suggestions) - 1
+
+        for i, cell in enumerate(self.selected_suggestions):
+            animation = math.sin(((cell[0] + cell[1]) * 5 + self.frame) % 30 / 30 * math.pi) * 0.1
+            position = self.scene.grid_to_screen(cell + np.array([0.5, 0.5 + animation]))
+
+            if i == last_index:
+                icon = 'tick' if move_possible else 'cross'
+                opengl_manager.draw_image(icon, position, (self.scene.cell_w, self.scene.cell_h))
             else:
-                color = 'red_gear'
-
-            opengl_manager.draw_image(color, position, (self.scene.cell_w, self.scene.cell_h))
+                opengl_manager.draw_image(sprite_name, position, (self.scene.cell_w, self.scene.cell_h))
 
         return
 

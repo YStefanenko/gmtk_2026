@@ -19,6 +19,7 @@ import pygame
 from scene_manager import scene_manager
 from opengl_manager import opengl_manager
 from overlay_manager import overlay_manager
+from sound_manager import sound_manager
 
 pygame.init()
 
@@ -28,16 +29,13 @@ pygame.display.set_caption("Your moves are running out")
 
 FPS = 60
 
-# for i in range(24):
-#     print(f"{[0 for j in range(24)]},")
-
 
 def main():
     clock = pygame.time.Clock()
     running = True
 
     scene = scene_manager.first_scene()
-    # sound_manager.start_music()
+    sound_manager.start_music()
 
     while running:
         events = pygame.event.get()

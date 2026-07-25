@@ -5,14 +5,18 @@ import numpy as np
 from levels import levels
 from player import Player
 from timer import Timer
+from sound_manager import sound_manager
+
+END_BTN_COLOR = (0.40, 0.30, 0.45, 1)
+END_BTN_HOVER_COLOR = (0.60, 0.45, 0.65, 1)
+END_BTN_OUTLINE = (0.85, 0.80, 0.85, 1)
 
 
 class GameScene:
     def __init__(self, level):
-        print(level)
         opengl_manager.clear_images()
 
-        for asset in ['green_gear', 'red_gear', 'grey_gear', 'finish_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow']:
+        for asset in ['tick', 'cross', 'finish_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
             image = pygame.image.load(f"assets/{asset}.png")
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(asset, image)
@@ -88,8 +92,16 @@ class GameScene:
 
         self.player.speed = self.timers[self.selected_timer].value
 
+        self.game = True
+
+        self.current_level = level
         self.next_level = level
         self.change_scene = None
+
+        self.end_buttons = []
+        self.end_button_hw = 0.16
+        self.end_button_hh = 0.06
+        self.hover_button = None
 
 
 
@@ -122,21 +134,49 @@ class GameScene:
         return col, row
 
     def event_check(self, events):
-        if self.player.position[0] == self.finish[0] and self.player.position[1] == self.finish[1]:
-            self.next_level += 1
-            self.change_scene = 'game'
+        if self.game:
+            if self.player.position[0] == self.finish[0] and self.player.position[1] == self.finish[1]:
+                self.end_level(1)
+            else:
+                if self.player.new_position is None:
+                    total_timer = sum(timer.value for timer in self.timers)
+                    if total_timer == 0:
+                        self.end_level(0)
 
         for event in events:
             if event.type == pygame.QUIT:
                 return 0
 
             elif event.type == OVERLAY_ACTION:
-                return 0
+                self.change_scene = 'home'
+                return 1
+
+            elif not self.game:
+                if event.type == pygame.MOUSEMOTION:
+                    mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+                    self.hover_button = None
+                    for action, cx, cy, name in self.end_buttons:
+                        if self._hit(cx, cy, self.end_button_hw, self.end_button_hh, mouse):
+                            self.hover_button = action
+                            break
+
+                elif event.type == pygame.MOUSEBUTTONDOWN:
+                    mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+                    for action, cx, cy, name in self.end_buttons:
+                        if self._hit(cx, cy, self.end_button_hw, self.end_button_hh, mouse):
+                            if action == 'menu':
+                                self.change_scene = 'home'
+                            elif action == 'next':
+                                self.next_level = self.current_level + 1
+                                self.change_scene = 'game'
+                            elif action == 'retry':
+                                self.next_level = self.current_level
+                                self.change_scene = 'game'
+                            break
 
             elif event.type == pygame.MOUSEMOTION:
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
-                over_grid = (self.offset_x <= mouse[0] <= 1 - self.offset_x and
-                             self.offset_y <= mouse[1] <= 1 - self.offset_y)
+                over_grid = (self.offset_x <= mouse[0] <= 1 - self.offset_x and self.offset_y <= mouse[1] <= 1 - self.offset_y)
                 if over_grid and self.player.new_position is None:
                     self.player.update_move_suggestion(mouse)
 
@@ -149,59 +189,36 @@ class GameScene:
                         self.player.update_move_suggestion()
                         break
                 else:
-                    if self.player.speed > 0:
-                        moved = self.player.move()
-                        if moved:
-                            self.timers[self.selected_timer].tick()
-                            self.player.speed = self.timers[self.selected_timer].value
+                    self.do_move()
 
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    overlay_manager.open_ec("close the game")
+                    overlay_manager.open_ec("return to menu")
 
                 elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
-                    if self.player.speed > 0:
-                        moved = self.player.move()
-                        if moved:
-                            self.timers[self.selected_timer].tick()
-                            self.player.speed = self.timers[self.selected_timer].value
+                    self.do_move()
 
                 elif event.key in (pygame.K_w, pygame.K_UP):
-                    if self.player.speed > 0:
-                        moved = self.player.move(np.array((0, 1)))
-                        if moved:
-                            self.timers[self.selected_timer].tick()
-                            self.player.speed = self.timers[self.selected_timer].value
+                    self.do_move(np.array((0, 1)))
 
                 elif event.key in (pygame.K_s, pygame.K_DOWN):
-                    if self.player.speed > 0:
-                        moved = self.player.move(np.array((0, -1)))
-                        if moved:
-                            self.timers[self.selected_timer].tick()
-                            self.player.speed = self.timers[self.selected_timer].value
+                    self.do_move(np.array((0, -1)))
 
                 elif event.key in (pygame.K_a, pygame.K_LEFT):
-                    if self.player.speed > 0:
-                        moved = self.player.move(np.array((-1, 0)))
-                        if moved:
-                            self.timers[self.selected_timer].tick()
-                            self.player.speed = self.timers[self.selected_timer].value
+                    self.do_move(np.array((-1, 0)))
 
                 elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                    if self.player.speed > 0:
-                        moved = self.player.move(np.array((1, 0)))
-                        if moved:
-                            self.timers[self.selected_timer].tick()
-                            self.player.speed = self.timers[self.selected_timer].value
+                    self.do_move(np.array((1, 0)))
 
                 elif event.key == pygame.K_r:
-                    self.change_scene = 'game'
-
+                    self.end_level(0)
 
         return 1
 
     def update(self):
         self.player.update()
+
+        sound_manager.update_ticking(self.game)
 
     def render(self):
         opengl_manager.clear_screen()
@@ -354,7 +371,7 @@ class GameScene:
                                         costume += "21"
                                 else:
                                     if neighbours[2] == 1:
-                                        costume += "10"
+                                        costume += "7"
                                     else:
                                         costume += "13"
                             else:
@@ -405,6 +422,18 @@ class GameScene:
         for i in range(len(self.timers)):
             self.timers[i].render(print_as_selected=(i == self.selected_timer))
 
+        if not self.game:
+            opengl_manager.draw_text('end1')
+            for action, cx, cy, name in self.end_buttons:
+                fill = END_BTN_HOVER_COLOR if self.hover_button == action else END_BTN_COLOR
+                corners = [(cx - self.end_button_hw, cy - self.end_button_hh),
+                           (cx + self.end_button_hw, cy - self.end_button_hh),
+                           (cx + self.end_button_hw, cy + self.end_button_hh),
+                           (cx - self.end_button_hw, cy + self.end_button_hh)]
+                opengl_manager.draw_polygon(corners, fill)
+                opengl_manager.draw_lines(corners, END_BTN_OUTLINE, 2, loop=True)
+                opengl_manager.draw_text(name)
+
 
     def get_neighbourhood(self, r, c):
         rows, cols = len(self.level), len(self.level[0])
@@ -418,3 +447,42 @@ class GameScene:
                 else:
                     out.append(self.level[rr][cc])
         return out
+
+    def _hit(self, cx, cy, hw, hh, mouse):
+        return cx - hw <= mouse[0] <= cx + hw and cy - hh <= mouse[1] <= cy + hh
+
+    def end_level(self, result):
+        self.game = False
+        self.hover_button = None
+        sound_manager.play_windup()
+
+        cy = 0.34
+        left_cx = 0.5 - 0.18
+        right_cx = 0.5 + 0.18
+
+        if result:
+            opengl_manager.load_text('Level Complete', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
+            right_action, right_label = 'next', 'Next Level'
+        else:
+            opengl_manager.load_text('Level Failed', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
+            right_action, right_label = 'retry', 'Try Again'
+
+        opengl_manager.load_text('Back to Menu', (240, 235, 245), 40, (left_cx, cy), 'end_btn_left')
+        opengl_manager.load_text(right_label, (240, 235, 245), 40, (right_cx, cy), 'end_btn_right')
+
+        self.end_buttons = [
+            ('menu', left_cx, cy, 'end_btn_left'),
+            (right_action, right_cx, cy, 'end_btn_right'),
+        ]
+
+
+    def do_move(self, direction=None):
+        if self.player.speed <= 0:
+            return
+
+        moved = self.player.move(direction)
+        self.player.update_move_suggestion()
+        if moved:
+            self.timers[self.selected_timer].tick()
+            self.player.speed = self.timers[self.selected_timer].value
+            sound_manager.play_move()

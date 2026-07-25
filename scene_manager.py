@@ -1,4 +1,5 @@
 from game_scene import GameScene
+from home_scene import HomeScene
 
 
 class SceneManager:
@@ -6,7 +7,7 @@ class SceneManager:
         self.scene_name = None
 
     def first_scene(self):
-        scene = GameScene(0)
+        scene = HomeScene()
         self.scene_name = 'home'
         return scene
 
@@ -15,6 +16,9 @@ class SceneManager:
             if scene.change_scene == 'game':
                 scene = GameScene(scene.next_level)
                 self.scene_name = 'game'
+            elif scene.change_scene == 'home':
+                scene = HomeScene()
+                self.scene_name = 'home'
 
         return scene
 
