@@ -24,9 +24,9 @@ color_map = {
 
 }
 
-for i in range(5, 15):
-    grid = image_to_grid(f"image ({i}).png", color_map)
-    print(f"'{i-5}': {'{'}'timers': [], ")
+for i in range(1, 18):
+    grid = image_to_grid(f"level-{i}.png", color_map)
+    print(f"'{i}': {'{'}'timers': [], ")
     print("'grid': [")
     for row in grid:
         print(f"{row}, ")

@@ -1,4 +1,5 @@
 import pygame
+from resource import resource_path
 
 pygame.mixer.init()
 
@@ -9,9 +10,9 @@ class SoundManager:
         self.sfx_volume = 0.2
 
         self.sound_effects = {
-            'move': pygame.mixer.Sound('assets/move.wav'),
-            'windup': pygame.mixer.Sound('assets/windup.wav'),
-            'ticking': pygame.mixer.Sound('assets/ticking.wav'),
+            'move': pygame.mixer.Sound(resource_path('assets/move.wav')),
+            'windup': pygame.mixer.Sound(resource_path('assets/windup.wav')),
+            'ticking': pygame.mixer.Sound(resource_path('assets/ticking.wav')),
         }
         for sound in self.sound_effects.values():
             sound.set_volume(self.sfx_volume)
@@ -19,7 +20,7 @@ class SoundManager:
         self.channel = pygame.mixer.find_channel()
 
     def start_music(self):
-        pygame.mixer.music.load('assets/sound_track.mp3')
+        pygame.mixer.music.load(resource_path('assets/sound_track.mp3'))
         pygame.mixer.music.set_volume(self.music_volume)
         pygame.mixer.music.play(-1)
 

@@ -6,6 +6,7 @@ from levels import levels
 from player import Player
 from timer import Timer
 from sound_manager import sound_manager
+from resource import resource_path
 
 END_BTN_COLOR = (0.40, 0.30, 0.45, 1)
 END_BTN_HOVER_COLOR = (0.60, 0.45, 0.65, 1)
@@ -17,50 +18,50 @@ class GameScene:
         opengl_manager.clear_images()
 
         for asset in ['tick', 'cross', 'finish_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
-            image = pygame.image.load(f"assets/{asset}.png")
+            image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(asset, image)
 
         for name in ['tbar', 'ybar', 'bbar']:
             for i in range(1, 7):
-                image = pygame.image.load(f"assets/{name}{i}.png")
+                image = pygame.image.load(resource_path(f"assets/{name}{i}.png"))
                 image = pygame.transform.scale(image, (96, 96))
                 opengl_manager.load_pygame_surface(f"{name}{i}", image)
 
         for i in range(0, 11):
-            image = pygame.image.load(f"assets/clock{i}.png")
+            image = pygame.image.load(resource_path(f"assets/clock{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"clock{i}", image)
 
         for i in range(0, 11):
-            image = pygame.image.load(f"assets/clock{i}p.png")
+            image = pygame.image.load(resource_path(f"assets/clock{i}p.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"clock{i}p", image)
 
         for i in range(0, 10):
-            image = pygame.image.load(f"assets/lfloor{i}.png")
+            image = pygame.image.load(resource_path(f"assets/lfloor{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"lfloor{i}", image)
 
         for i in range(0, 10):
-            image = pygame.image.load(f"assets/dfloor{i}.png")
+            image = pygame.image.load(resource_path(f"assets/dfloor{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"dfloor{i}", image)
 
         for i in range(0, 22):
             if i == 17 or i == 20:
                 continue
-            image = pygame.image.load(f"assets/wall{i}.png")
+            image = pygame.image.load(resource_path(f"assets/wall{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"wall{i}", image)
 
         for i in range(0, 4):
-            image = pygame.image.load(f"assets/top{i}.png")
+            image = pygame.image.load(resource_path(f"assets/top{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"top{i}", image)
 
         for i in range(1, 25):
-            image = pygame.image.load(f"assets/mouse{i}.png")
+            image = pygame.image.load(resource_path(f"assets/mouse{i}.png"))
             image = pygame.transform.scale(image, (128, 128))
             opengl_manager.load_pygame_surface(f"mouse{i}", image)
 

@@ -5,6 +5,7 @@ import numpy as np
 import math
 import time
 import sys
+from resource import resource_path
 
 
 class OpenglManager:
@@ -125,7 +126,7 @@ class OpenglManager:
         del self.textures[name]
 
     def load_image(self, name, image_path):
-        surface = pygame.image.load(image_path).convert_alpha()
+        surface = pygame.image.load(resource_path(image_path)).convert_alpha()
         width, height = surface.get_size()
         image_data = pygame.image.tostring(surface, "RGBA", True)
         texture_id = glGenTextures(1)
@@ -322,7 +323,7 @@ class OpenglManager:
 
         px_size = max(1, int(round(size * self.screen_size[1] / 864)))
 
-        font = pygame.font.Font("./assets/ari-w9500.ttf", px_size)
+        font = pygame.font.Font(resource_path("assets/ari-w9500.ttf"), px_size)
 
         base = font.render(text, True, color)
         text_size = base.get_size()

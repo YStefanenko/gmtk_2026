@@ -38,6 +38,12 @@ def collect_classes_and_globals():
 import os
 import sys
 
+
+def resource_path(rel):
+    base = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    return os.path.join(base, rel)
+
+
 os.chdir(os.path.dirname(sys.argv[0]))
 
 # Force SDL to use primary monitor

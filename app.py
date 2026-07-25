@@ -1,5 +1,8 @@
 import os
 import sys
+def resource_path(rel):
+    base = getattr(sys, "_MEIPASS", os.path.abspath("."))
+    return os.path.join(base, rel)
 os.chdir(os.path.dirname(sys.argv[0]))
 if sys.platform == "darwin":
     os.environ["SDL_VIDEO_WINDOW_POS"] = "0,0"
@@ -20,42 +23,42 @@ class GameScene:
     def __init__(self, level):
         opengl_manager.clear_images()
         for asset in ['tick', 'cross', 'finish_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
-            image = pygame.image.load(f"assets/{asset}.png")
+            image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(asset, image)
         for name in ['tbar', 'ybar', 'bbar']:
             for i in range(1, 7):
-                image = pygame.image.load(f"assets/{name}{i}.png")
+                image = pygame.image.load(resource_path(f"assets/{name}{i}.png"))
                 image = pygame.transform.scale(image, (96, 96))
                 opengl_manager.load_pygame_surface(f"{name}{i}", image)
         for i in range(0, 11):
-            image = pygame.image.load(f"assets/clock{i}.png")
+            image = pygame.image.load(resource_path(f"assets/clock{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"clock{i}", image)
         for i in range(0, 11):
-            image = pygame.image.load(f"assets/clock{i}p.png")
+            image = pygame.image.load(resource_path(f"assets/clock{i}p.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"clock{i}p", image)
         for i in range(0, 10):
-            image = pygame.image.load(f"assets/lfloor{i}.png")
+            image = pygame.image.load(resource_path(f"assets/lfloor{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"lfloor{i}", image)
         for i in range(0, 10):
-            image = pygame.image.load(f"assets/dfloor{i}.png")
+            image = pygame.image.load(resource_path(f"assets/dfloor{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"dfloor{i}", image)
         for i in range(0, 22):
             if i == 17 or i == 20:
                 continue
-            image = pygame.image.load(f"assets/wall{i}.png")
+            image = pygame.image.load(resource_path(f"assets/wall{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"wall{i}", image)
         for i in range(0, 4):
-            image = pygame.image.load(f"assets/top{i}.png")
+            image = pygame.image.load(resource_path(f"assets/top{i}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(f"top{i}", image)
         for i in range(1, 25):
-            image = pygame.image.load(f"assets/mouse{i}.png")
+            image = pygame.image.load(resource_path(f"assets/mouse{i}.png"))
             image = pygame.transform.scale(image, (128, 128))
             opengl_manager.load_pygame_surface(f"mouse{i}", image)
         self.level = np.array(levels[str(level)]['grid'][::-1])
@@ -485,136 +488,227 @@ class HomeScene:
         self._draw_box(self.play_cx, self.play_cy, self.play_hw, self.play_hh, play_fill)
         opengl_manager.draw_text('home_play')
 levels = {
-    '0': {'timers': [6],
-    'grid': [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 0, 2, 0, 0, 3, 0, 0, 0, 1],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]},
-    '1': {'timers': [8],
-    'grid': [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
-    [1, 1, 0, 1, 0, 0, 0, 1, 0, 1],
-    [1, 1, 0, 1, 3, 1, 0, 1, 0, 1],
-    [1, 1, 0, 1, 1, 1, 0, 1, 0, 1],
-    [1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
-    [2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]},
-    '2': {'timers': [8],
-    'grid': [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 0, 1, 1, 0, 1, 1, 0, 1],
-    [1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
-    [1, 1, 0, 0, 3, 1, 1, 1, 0, 1],
-    [1, 1, 0, 0, 1, 1, 0, 1, 0, 1],
-    [1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
-    [1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-    [2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]},
-    '3': {'timers': [6],
-    'grid': [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
-    [0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
-    [0, 0, 2, 0, 0, 3, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
-    [0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ]},
-    '4': {'timers': [8],
-    'grid': [
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    [1, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 0, 1, 1, 0, 0, 0, 0, 0, 0],
-    [1, 0, 1, 0, 0, 1, 1, 1, 1, 0],
-    [1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    [1, 0, 0, 1, 0, 1, 0, 0, 1, 0],
-    [1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
-    [1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
-    [1, 0, 0, 1, 1, 1, 1, 0, 3, 0],
-    [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ]},
-    '5': {'timers': [8],
-    'grid': [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 3, 0, 1, 1, 1, 1, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 0, 0, 0, 1, 1, 0, 0],
-    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 0, 1, 0, 1, 1, 0, 0],
-    [0, 0, 1, 0, 1, 0, 1, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ]},
-    '6': {'timers': [8],
-    'grid': [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 3, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]},
-    '7': {'timers': [8],
-    'grid': [
-    [2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
-    [0, 0, 1, 1, 0, 1, 1, 0, 0, 1],
-    [0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
-    [0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
-    [0, 1, 1, 0, 0, 0, 1, 0, 0, 1],
-    [0, 0, 1, 0, 0, 1, 1, 0, 0, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]},
-    '8': {'timers': [8],
-    'grid': [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
-    [0, 0, 1, 3, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 1, 0, 0, 1, 1, 1, 0, 0],
-    [0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    ]},
-    '9': {'timers': [8],
-    'grid': [
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-    [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-    [0, 0, 0, 0, 3, 1, 0, 0, 1, 1],
-    [0, 0, 0, 0, 1, 1, 0, 0, 1, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-    [0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
-    [0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
-    [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
-    ]},
+'1': {'timers': [6],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 2, 0, 0, 3, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'2': {'timers': [8],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+[1, 1, 0, 1, 0, 0, 0, 1, 0, 1],
+[1, 1, 0, 1, 3, 1, 0, 1, 0, 1],
+[1, 1, 0, 1, 1, 1, 0, 1, 0, 1],
+[1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 0, 1],
+[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'3': {'timers': [8],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 0, 1, 1, 0, 1, 1, 0, 1],
+[1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+[1, 1, 0, 0, 3, 1, 1, 1, 0, 1],
+[1, 1, 0, 0, 1, 1, 0, 1, 0, 1],
+[1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+[1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'4': {'timers': [6],
+'grid': [
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+[0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
+[0, 0, 2, 0, 0, 3, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
+[0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]},
+'5': {'timers': [8],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 0, 1, 1, 0, 0, 0, 0, 0, 0],
+[1, 0, 1, 0, 0, 1, 1, 1, 1, 0],
+[1, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+[1, 0, 0, 1, 0, 1, 0, 0, 1, 0],
+[1, 0, 0, 1, 0, 0, 0, 0, 1, 0],
+[1, 0, 0, 1, 0, 0, 0, 0, 0, 0],
+[1, 0, 0, 1, 1, 1, 1, 0, 3, 0],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]},
+'6': {'timers': [8],
+'grid': [
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 3, 0, 1, 1, 1, 1, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 0, 0, 0, 1, 1, 0, 0],
+[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 0, 1, 0, 1, 1, 0, 0],
+[0, 0, 1, 0, 1, 0, 1, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]},
+'7': {'timers': [8],
+'grid': [
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 3, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+[0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'8': {'timers': [8],
+'grid': [
+[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
+[0, 0, 1, 1, 0, 1, 1, 0, 0, 1],
+[0, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+[0, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+[0, 1, 1, 0, 0, 0, 1, 0, 0, 1],
+[0, 0, 1, 0, 0, 1, 1, 0, 0, 1],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'9': {'timers': [8],
+'grid': [
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
+[0, 0, 1, 3, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 0, 0, 1, 1, 1, 0, 0],
+[0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]},
+'10': {'timers': [8],
+'grid': [
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[0, 0, 0, 0, 3, 1, 0, 0, 1, 1],
+[0, 0, 0, 0, 1, 1, 0, 0, 1, 1],
+[0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[0, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+[0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'11': {'timers': [3, 2, 1],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[2, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 1, 0, 0, 0, 0, 0, 0, 0, 3],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'12': {'timers': [4, 3, 2, 1],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 1, 1, 0, 0, 0, 0, 1],
+[1, 0, 0, 1, 1, 1, 1, 0, 0, 1],
+[1, 0, 0, 0, 3, 1, 1, 0, 0, 1],
+[1, 0, 0, 1, 1, 2, 0, 0, 0, 1],
+[1, 0, 0, 1, 1, 1, 1, 0, 0, 1],
+[1, 0, 0, 0, 0, 1, 1, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'13': {'timers': [5, 4, 3, 2, 1],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 3, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+[2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'14': {'timers': [4, 3, 2],
+'grid': [
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+[0, 0, 0, 2, 1, 1, 3, 0, 0, 0],
+[0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'15': {'timers': [3, 3, 3],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 2, 1, 1, 1, 1, 1],
+[1, 1, 0, 0, 0, 1, 1, 1, 1, 1],
+[1, 1, 0, 1, 0, 1, 1, 1, 1, 1],
+[1, 1, 0, 1, 0, 0, 0, 1, 1, 1],
+[1, 1, 0, 0, 0, 1, 0, 0, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 3, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'16': {'timers': [4, 4, 4],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 0, 1, 1, 0, 3, 1],
+[1, 1, 0, 2, 0, 0, 0, 0, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'17': {'timers': [6, 6],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 2, 3, 1, 1, 1, 1],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 1, 1, 1, 0, 0, 1, 1, 1, 0],
+[0, 1, 1, 1, 0, 0, 1, 1, 1, 0],
+[0, 1, 1, 1, 0, 0, 1, 1, 1, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]},
 }
 class OpenglManager:
     def __init__(self):
@@ -694,7 +788,7 @@ class OpenglManager:
         glDeleteTextures([self.textures[name]])
         del self.textures[name]
     def load_image(self, name, image_path):
-        surface = pygame.image.load(image_path).convert_alpha()
+        surface = pygame.image.load(resource_path(image_path)).convert_alpha()
         width, height = surface.get_size()
         image_data = pygame.image.tostring(surface, "RGBA", True)
         texture_id = glGenTextures(1)
@@ -861,7 +955,7 @@ class OpenglManager:
         return surface
     def load_text(self, text, color, size, position, name, outline=0, outline_color=(0, 0, 0), fix=None, width_limit=1, font=None, direction=None):
         px_size = max(1, int(round(size * self.screen_size[1] / 864)))
-        font = pygame.font.Font("./assets/ari-w9500.ttf", px_size)
+        font = pygame.font.Font(resource_path("assets/ari-w9500.ttf"), px_size)
         base = font.render(text, True, color)
         text_size = base.get_size()
         if outline:
@@ -1406,15 +1500,15 @@ class SoundManager:
         self.music_volume = 0.5
         self.sfx_volume = 0.2
         self.sound_effects = {
-            'move': pygame.mixer.Sound('assets/move.wav'),
-            'windup': pygame.mixer.Sound('assets/windup.wav'),
-            'ticking': pygame.mixer.Sound('assets/ticking.wav'),
+            'move': pygame.mixer.Sound(resource_path('assets/move.wav')),
+            'windup': pygame.mixer.Sound(resource_path('assets/windup.wav')),
+            'ticking': pygame.mixer.Sound(resource_path('assets/ticking.wav')),
         }
         for sound in self.sound_effects.values():
             sound.set_volume(self.sfx_volume)
         self.channel = pygame.mixer.find_channel()
     def start_music(self):
-        pygame.mixer.music.load('assets/sound_track.mp3')
+        pygame.mixer.music.load(resource_path('assets/sound_track.mp3'))
         pygame.mixer.music.set_volume(self.music_volume)
         pygame.mixer.music.play(-1)
     def play_move(self):
