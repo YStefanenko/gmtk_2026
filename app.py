@@ -118,7 +118,7 @@ class GameScene:
         self.restart_hh = restart_h / 2
         self.hover_restart = False
         hint_px = {'hint1': (134, 92), 'hint2': (134, 106), 'hint3': (154, 82)}
-        hint_levels = {1: ['hint1', 'hint2'], 2: ['hint1', 'hint2'], 7: ['hint3'], 8: ['hint3']}
+        hint_levels = {1: ['hint1', 'hint2'], 2: ['hint1', 'hint2'], 13: ['hint3'], 14: ['hint3']}
         hint_w = 0.14
         left_x = 0.035
         top_y = 0.86
