@@ -139,8 +139,8 @@ class GameScene:
         hint_levels = {1: ['hint1', 'hint2'], 2: ['hint1', 'hint2'], 13: ['hint3'], 14: ['hint3']}
 
         hint_w = 0.14
-        left_x = 0.035
-        top_y = 0.86
+        left_x = 0.12
+        top_y = 0.65
         gap = 0.02
         self.hints = []
         for name in hint_levels.get(level, []):
