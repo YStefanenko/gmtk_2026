@@ -3,20 +3,27 @@ from overlay_manager import overlay_manager, OVERLAY_ACTION
 from opengl_manager import opengl_manager
 import numpy as np
 from levels import levels
+from global_variables import get_levels_completed, set_levels_completed
 from player import Player
 from timer import Timer
 from sound_manager import sound_manager
 from resource import resource_path
 from countdown_tile import CountdownTile
 
-END_BTN_COLOR = (0.40, 0.30, 0.45, 1)
-END_BTN_HOVER_COLOR = (0.60, 0.45, 0.65, 1)
-END_BTN_OUTLINE = (0.85, 0.80, 0.85, 1)
-
 
 class GameScene:
     def __init__(self, level):
         opengl_manager.clear_images()
+
+        # image = pygame.image.load(resource_path(f"assets/background.png"))
+        # image = pygame.transform.scale_by(image, 4)
+        # opengl_manager.load_pygame_surface(f"background", image)
+
+        for asset in ['back_to_menu', 'back_to_menu_hover', 'level_complete', 'level_failed', 'try_again', 'try_again_hover', 'next_level', 'next_level_hover', 'restart', 'restart_hover']:
+            image = pygame.image.load(resource_path(f"assets/{asset}.png"))
+            image = pygame.transform.scale_by(image, 4)
+            opengl_manager.load_pygame_surface(f"{asset}", image)
+
 
         for asset in ['tick', 'cross', 'finish_tile', 'countdown_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
             image = pygame.image.load(resource_path(f"assets/{asset}.png"))
@@ -106,9 +113,21 @@ class GameScene:
         self.change_scene = None
 
         self.end_buttons = []
-        self.end_button_hw = 0.16
-        self.end_button_hh = 0.06
+        self.end_title = None
+        self.end_title_size = (0.96 * 9 / 16, 0.96)
+        self.end_button_size = (0.4 * 9 / 16, 0.4 / 128 * 36)
+        self.end_button_hw = self.end_button_size[0] / 2
+        self.end_button_hh = self.end_button_size[1] / 2
         self.hover_button = None
+
+        restart_h = 0.2
+        restart_w = restart_h * (38 / 40) * (9 / 16)
+        self.restart_size = (restart_w, restart_h)
+        self.restart_cx = 0.95
+        self.restart_cy = 0.92
+        self.restart_hw = restart_w / 2
+        self.restart_hh = restart_h / 2
+        self.hover_restart = False
 
 
 
@@ -156,7 +175,8 @@ class GameScene:
 
             elif event.type == OVERLAY_ACTION:
                 self.change_scene = 'home'
-                self.end_level(0)
+                if self.game:
+                    self.end_level(0)
                 return 1
 
             elif not self.game:
@@ -192,12 +212,17 @@ class GameScene:
 
             elif event.type == pygame.MOUSEMOTION:
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+                self.hover_restart = self._hit(self.restart_cx, self.restart_cy, self.restart_hw, self.restart_hh, mouse)
                 over_grid = (self.offset_x <= mouse[0] <= 1 - self.offset_x and self.offset_y <= mouse[1] <= 1 - self.offset_y)
                 if over_grid and self.player.new_position is None:
                     self.player.update_move_suggestion(mouse)
 
             elif event.type == pygame.MOUSEBUTTONDOWN:
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+                if self._hit(self.restart_cx, self.restart_cy, self.restart_hw, self.restart_hh, mouse):
+                    self.next_level = self.current_level
+                    self.change_scene = 'game'
+                    return 1
                 for i in range(len(self.timers)):
                     if self.timers[i].is_pressed(mouse):
                         self.selected_timer = i
@@ -239,7 +264,8 @@ class GameScene:
                     self.do_move(np.array((1, 0)))
 
                 elif event.key == pygame.K_r:
-                    self.end_level(0)
+                    self.next_level = self.current_level
+                    self.change_scene = 'game'
 
         return 1
 
@@ -257,6 +283,10 @@ class GameScene:
         opengl_manager.clear_screen()
 
         opengl_manager.draw_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], (0.271, 0.157, 0.235, 1))
+
+        # mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+        # offset = np.array([0.5, 0.5]) - mouse
+        # opengl_manager.draw_image('background', np.array([0.5, 0.5]) + offset / 10, (1.1, 1.1))
 
         # Render grid
         rows, cols = self.level.shape
@@ -458,17 +488,14 @@ class GameScene:
         for i in range(len(self.timers)):
             self.timers[i].render(print_as_selected=(i == self.selected_timer))
 
+        if self.game:
+            restart_image = 'restart_hover' if self.hover_restart else 'restart'
+            opengl_manager.draw_image(restart_image, (self.restart_cx, self.restart_cy), self.restart_size)
+
         if not self.game:
-            opengl_manager.draw_text('end1')
-            for action, cx, cy, name in self.end_buttons:
-                fill = END_BTN_HOVER_COLOR if self.hover_button == action else END_BTN_COLOR
-                corners = [(cx - self.end_button_hw, cy - self.end_button_hh),
-                           (cx + self.end_button_hw, cy - self.end_button_hh),
-                           (cx + self.end_button_hw, cy + self.end_button_hh),
-                           (cx - self.end_button_hw, cy + self.end_button_hh)]
-                opengl_manager.draw_polygon(corners, fill)
-                opengl_manager.draw_lines(corners, END_BTN_OUTLINE, 2, loop=True)
-                opengl_manager.draw_text(name)
+            opengl_manager.draw_image(self.end_title, (0.5, 0.55), self.end_title_size)
+            for action, cx, cy, image in self.end_buttons:
+                opengl_manager.draw_image(image + ("_hover" if self.hover_button == action else ""), (cx, cy), self.end_button_size)
 
 
     def get_neighbourhood(self, r, c):
@@ -492,25 +519,23 @@ class GameScene:
         self.hover_button = None
         sound_manager.play_effect('windup')
 
-        cy = 0.34
-        left_cx = 0.5 - 0.18
-        right_cx = 0.5 + 0.18
+        cy = 0.30
+        left_cx = 0.5 - 0.1
+        right_cx = 0.5 + 0.12
 
         if result:
+            set_levels_completed(max(self.current_level, get_levels_completed()))
             sound_manager.play_effect('victory')
-            opengl_manager.load_text('Level Complete', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
-            right_action, right_label = 'next', 'Next Level'
+            self.end_title = 'level_complete'
+            right_action, right_image = 'next', 'next_level'
         else:
             sound_manager.play_effect('defeat')
-            opengl_manager.load_text('Level Failed', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
-            right_action, right_label = 'retry', 'Try Again'
-
-        opengl_manager.load_text('Back to Menu', (240, 235, 245), 40, (left_cx, cy), 'end_btn_left')
-        opengl_manager.load_text(right_label, (240, 235, 245), 40, (right_cx, cy), 'end_btn_right')
+            self.end_title = 'level_failed'
+            right_action, right_image = 'retry', 'try_again'
 
         self.end_buttons = [
-            ('menu', left_cx, cy, 'end_btn_left'),
-            (right_action, right_cx, cy, 'end_btn_right'),
+            ('menu', left_cx, cy, 'back_to_menu'),
+            (right_action, right_cx, cy, right_image),
         ]
 
 

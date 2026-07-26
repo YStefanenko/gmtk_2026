@@ -2,12 +2,14 @@ OUTPUT_FILE = 'app.py'
 
 # 📝 List the files you want to include below
 FILES_TO_INCLUDE = [
+    'global_variables.py',
     'game_scene.py',
     'home_scene.py',
     'levels.py',
     'opengl_manager.py',
     'overlay_manager.py',
     'player.py',
+    'global_variables.py',
     'scene_manager.py',
     'sound_manager.py',
     'timer.py',
@@ -82,7 +84,7 @@ pygame.init()
 
 opengl_manager.create_screen()
 
-pygame.display.set_caption("Your moves are running out")
+pygame.display.set_caption("Wind Up")
 
 FPS = 60
 

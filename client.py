@@ -25,7 +25,7 @@ pygame.init()
 
 opengl_manager.create_screen()
 
-pygame.display.set_caption("Your moves are running out")
+pygame.display.set_caption("Wind Up")
 
 FPS = 60
 

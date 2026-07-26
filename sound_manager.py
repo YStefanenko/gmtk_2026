@@ -29,6 +29,14 @@ class SoundManager:
         self.duck_channel = None
         self.music_ducked = False
 
+    def set_volume(self, value):
+        value = max(0.0, min(1.0, value))
+        self.music_volume = value
+        self.sfx_volume = value * 0.4
+        pygame.mixer.music.set_volume(self.music_volume)
+        for sound in self.sound_effects.values():
+            sound.set_volume(self.sfx_volume)
+
     def start_music(self):
         pygame.mixer.music.load(resource_path('assets/sound_track.mp3'))
         pygame.mixer.music.set_volume(self.music_volume)
