@@ -201,7 +201,14 @@ class GameScene:
                 over_grid = (self.offset_x <= mouse[0] <= 1 - self.offset_x and self.offset_y <= mouse[1] <= 1 - self.offset_y)
                 if over_grid and self.player.new_position is None:
                     self.player.update_move_suggestion(mouse)
+            elif event.type == pygame.MOUSEWHEEL:
+                if event.y > 0:
+                    self.select_timer(self.selected_timer - 1)
+                elif event.y < 0:
+                    self.select_timer(self.selected_timer + 1)
             elif event.type == pygame.MOUSEBUTTONDOWN:
+                if event.button != 1:
+                    continue
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
                 if self._hit(self.restart_cx, self.restart_cy, self.restart_hw, self.restart_hh, mouse):
                     self.next_level = self.current_level
@@ -209,9 +216,7 @@ class GameScene:
                     return 1
                 for i in range(len(self.timers)):
                     if self.timers[i].is_pressed(mouse):
-                        self.selected_timer = i
-                        self.player.speed = self.timers[i].value
-                        self.player.update_move_suggestion()
+                        self.select_timer(i)
                         break
                 else:
                     self.do_move()
@@ -219,15 +224,9 @@ class GameScene:
                 if event.key == pygame.K_ESCAPE:
                     overlay_manager.open_ec("return to menu")
                 elif event.key == pygame.K_q:
-                    if self.selected_timer > 0:
-                        self.selected_timer -= 1
-                        self.player.speed = self.timers[self.selected_timer].value
-                        self.player.update_move_suggestion()
+                    self.select_timer(self.selected_timer - 1)
                 elif event.key == pygame.K_e:
-                    if self.selected_timer < len(self.timers) - 1:
-                        self.selected_timer += 1
-                        self.player.speed = self.timers[self.selected_timer].value
-                        self.player.update_move_suggestion()
+                    self.select_timer(self.selected_timer + 1)
                 elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     self.do_move()
                 elif event.key in (pygame.K_w, pygame.K_UP):
@@ -242,6 +241,11 @@ class GameScene:
                     self.next_level = self.current_level
                     self.change_scene = 'game'
         return 1
+    def select_timer(self, index):
+        if 0 <= index < len(self.timers):
+            self.selected_timer = index
+            self.player.speed = self.timers[self.selected_timer].value
+            self.player.update_move_suggestion()
     def update(self):
         self.player.update(self.countdown_tiles)
         for i in range(len(self.countdown_tiles)-1, -1, -1):
@@ -869,6 +873,20 @@ levels = {
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'21': {'timers': [6, 4, 4],
+'countdown_tiles': [1],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 2, 0, 0, 0, 4, 1, 1, 1, 1],
+[1, 0, 1, 1, 1, 0, 1, 1, 1, 1],
+[1, 0, 1, 0, 0, 0, 1, 1, 1, 1],
+[1, 0, 1, 1, 0, 1, 1, 1, 1, 1],
+[1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 1, 0, 0, 0, 0, 3, 0, 1],
+[1, 0, 1, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 ]},
 }
 class OpenglManager:
