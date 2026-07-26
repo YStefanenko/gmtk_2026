@@ -7,6 +7,7 @@ from player import Player
 from timer import Timer
 from sound_manager import sound_manager
 from resource import resource_path
+from countdown_tile import CountdownTile
 
 END_BTN_COLOR = (0.40, 0.30, 0.45, 1)
 END_BTN_HOVER_COLOR = (0.60, 0.45, 0.65, 1)
@@ -17,7 +18,7 @@ class GameScene:
     def __init__(self, level):
         opengl_manager.clear_images()
 
-        for asset in ['tick', 'cross', 'finish_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
+        for asset in ['tick', 'cross', 'finish_tile', 'countdown_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
             image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(asset, image)
@@ -77,6 +78,11 @@ class GameScene:
 
         self.cell_w = self.cell_h = self.offset_x = self.offset_y = 0
         self.calculate_grid()
+
+        self.countdown_tiles = np.where(self.level == 4)
+        for i in range(len(self.countdown_tiles[0])):
+            self.level[self.countdown_tiles[0][i], self.countdown_tiles[1][i]] = 0
+        self.countdown_tiles = [CountdownTile((self.countdown_tiles[1][i], self.countdown_tiles[0][i]), self.grid_to_screen((self.countdown_tiles[1][i] + 0.5, self.countdown_tiles[0][i] + 0.5)), (self.cell_w, self.cell_h)) for i in range(len(self.countdown_tiles[0]))]
 
         self.player = Player(self.start, self)
 
@@ -150,6 +156,7 @@ class GameScene:
 
             elif event.type == OVERLAY_ACTION:
                 self.change_scene = 'home'
+                self.end_level(0)
                 return 1
 
             elif not self.game:
@@ -169,11 +176,19 @@ class GameScene:
                                 self.change_scene = 'home'
                             elif action == 'next':
                                 self.next_level = self.current_level + 1
-                                self.change_scene = 'game'
+
+                                if str(self.next_level) in levels:
+                                    self.change_scene = 'game'
+                                else:
+                                    self.change_scene = 'home'
                             elif action == 'retry':
                                 self.next_level = self.current_level
                                 self.change_scene = 'game'
                             break
+
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        overlay_manager.open_ec("return to menu")
 
             elif event.type == pygame.MOUSEMOTION:
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
@@ -196,6 +211,18 @@ class GameScene:
                 if event.key == pygame.K_ESCAPE:
                     overlay_manager.open_ec("return to menu")
 
+                elif event.key == pygame.K_q:
+                    if self.selected_timer > 0:
+                        self.selected_timer -= 1
+                        self.player.speed = self.timers[self.selected_timer].value
+                        self.player.update_move_suggestion()
+
+                elif event.key == pygame.K_e:
+                    if self.selected_timer < len(self.timers) - 1:
+                        self.selected_timer += 1
+                        self.player.speed = self.timers[self.selected_timer].value
+                        self.player.update_move_suggestion()
+
                 elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     self.do_move()
 
@@ -217,7 +244,12 @@ class GameScene:
         return 1
 
     def update(self):
-        self.player.update()
+        self.player.update(self.countdown_tiles)
+
+        for i in range(len(self.countdown_tiles)-1, -1, -1):
+            if self.countdown_tiles[i].become_a_wall:
+                self.level[self.countdown_tiles[i].grid_position[1], self.countdown_tiles[i].grid_position[0]] = 1
+                self.countdown_tiles.pop(i)
 
         sound_manager.update_ticking(self.game)
 
@@ -263,6 +295,9 @@ class GameScene:
                         costume += "5"
 
                     opengl_manager.draw_image(costume, position, (self.cell_w, -self.cell_h))
+
+        for tile in self.countdown_tiles:
+            tile.render()
 
         opengl_manager.draw_image('finish_tile', self.grid_to_screen(self.finish + np.array([0.5, 0.5])), (self.cell_w, -self.cell_h))
 
@@ -455,16 +490,18 @@ class GameScene:
     def end_level(self, result):
         self.game = False
         self.hover_button = None
-        sound_manager.play_windup()
+        sound_manager.play_effect('windup')
 
         cy = 0.34
         left_cx = 0.5 - 0.18
         right_cx = 0.5 + 0.18
 
         if result:
+            sound_manager.play_effect('victory')
             opengl_manager.load_text('Level Complete', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
             right_action, right_label = 'next', 'Next Level'
         else:
+            sound_manager.play_effect('defeat')
             opengl_manager.load_text('Level Failed', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
             right_action, right_label = 'retry', 'Try Again'
 
@@ -482,7 +519,6 @@ class GameScene:
             return
 
         moved = self.player.move(direction)
-        self.player.update_move_suggestion()
         if moved:
             self.timers[self.selected_timer].tick()
             self.player.speed = self.timers[self.selected_timer].value

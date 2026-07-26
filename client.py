@@ -53,6 +53,8 @@ def main():
         scene.render()
         overlay_manager.render()
 
+        sound_manager.update_music()
+
         scene = scene_manager.update_scene(scene)
 
         pygame.display.flip()

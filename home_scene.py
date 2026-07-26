@@ -4,11 +4,14 @@ from opengl_manager import opengl_manager
 from overlay_manager import OVERLAY_ACTION
 from levels import levels
 from overlay_manager import overlay_manager
+from resource import resource_path
 
 
 class HomeScene:
     def __init__(self):
         opengl_manager.clear_images()
+
+        opengl_manager.load_image('logo', resource_path(f"assets/logo.png"))
 
         self.total_levels = 30
         self.cols = 6
@@ -52,7 +55,6 @@ class HomeScene:
         self.play_hw = 0.13
         self.play_hh = 0.055
 
-        opengl_manager.load_text('Your moves are running out', (235, 225, 240), 110, (0.5, 0.88), 'home_title')
         opengl_manager.load_text('PLAY', (40, 25, 35), 60, (self.play_cx, self.play_cy), 'home_play')
 
         for level, cx, cy, enabled in self.boxes:
@@ -109,7 +111,7 @@ class HomeScene:
         opengl_manager.clear_screen()
         opengl_manager.draw_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], self.bg_color)
 
-        opengl_manager.draw_text('home_title')
+        opengl_manager.draw_image('logo', (0.5, 0.9), (0.22 * 1.5, 0.109 * 1.5))
 
         for level, cx, cy, enabled in self.boxes:
             if not enabled:

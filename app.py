@@ -22,7 +22,7 @@ END_BTN_OUTLINE = (0.85, 0.80, 0.85, 1)
 class GameScene:
     def __init__(self, level):
         opengl_manager.clear_images()
-        for asset in ['tick', 'cross', 'finish_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
+        for asset in ['tick', 'cross', 'finish_tile', 'countdown_tile', 'outerwall0', 'outerwall1', 'outerwall3', 'outerwall4', 'player_shadow', 'green_up', 'green_down', 'green_left', 'green_right', 'red_up', 'red_down', 'red_left', 'red_right']:
             image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale(image, (96, 96))
             opengl_manager.load_pygame_surface(asset, image)
@@ -70,6 +70,10 @@ class GameScene:
         self.level[self.finish[1], self.finish[0]] = 0
         self.cell_w = self.cell_h = self.offset_x = self.offset_y = 0
         self.calculate_grid()
+        self.countdown_tiles = np.where(self.level == 4)
+        for i in range(len(self.countdown_tiles[0])):
+            self.level[self.countdown_tiles[0][i], self.countdown_tiles[1][i]] = 0
+        self.countdown_tiles = [CountdownTile((self.countdown_tiles[1][i], self.countdown_tiles[0][i]), self.grid_to_screen((self.countdown_tiles[1][i] + 0.5, self.countdown_tiles[0][i] + 0.5)), (self.cell_w, self.cell_h)) for i in range(len(self.countdown_tiles[0]))]
         self.player = Player(self.start, self)
         self.selected_timer = 0
         timer_values = levels[str(level)]['timers']
@@ -122,6 +126,7 @@ class GameScene:
                 return 0
             elif event.type == OVERLAY_ACTION:
                 self.change_scene = 'home'
+                self.end_level(0)
                 return 1
             elif not self.game:
                 if event.type == pygame.MOUSEMOTION:
@@ -139,11 +144,17 @@ class GameScene:
                                 self.change_scene = 'home'
                             elif action == 'next':
                                 self.next_level = self.current_level + 1
-                                self.change_scene = 'game'
+                                if str(self.next_level) in levels:
+                                    self.change_scene = 'game'
+                                else:
+                                    self.change_scene = 'home'
                             elif action == 'retry':
                                 self.next_level = self.current_level
                                 self.change_scene = 'game'
                             break
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        overlay_manager.open_ec("return to menu")
             elif event.type == pygame.MOUSEMOTION:
                 mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
                 over_grid = (self.offset_x <= mouse[0] <= 1 - self.offset_x and self.offset_y <= mouse[1] <= 1 - self.offset_y)
@@ -162,6 +173,16 @@ class GameScene:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     overlay_manager.open_ec("return to menu")
+                elif event.key == pygame.K_q:
+                    if self.selected_timer > 0:
+                        self.selected_timer -= 1
+                        self.player.speed = self.timers[self.selected_timer].value
+                        self.player.update_move_suggestion()
+                elif event.key == pygame.K_e:
+                    if self.selected_timer < len(self.timers) - 1:
+                        self.selected_timer += 1
+                        self.player.speed = self.timers[self.selected_timer].value
+                        self.player.update_move_suggestion()
                 elif event.key in (pygame.K_RETURN, pygame.K_KP_ENTER):
                     self.do_move()
                 elif event.key in (pygame.K_w, pygame.K_UP):
@@ -176,7 +197,11 @@ class GameScene:
                     self.end_level(0)
         return 1
     def update(self):
-        self.player.update()
+        self.player.update(self.countdown_tiles)
+        for i in range(len(self.countdown_tiles)-1, -1, -1):
+            if self.countdown_tiles[i].become_a_wall:
+                self.level[self.countdown_tiles[i].grid_position[1], self.countdown_tiles[i].grid_position[0]] = 1
+                self.countdown_tiles.pop(i)
         sound_manager.update_ticking(self.game)
     def render(self):
         opengl_manager.clear_screen()
@@ -211,6 +236,8 @@ class GameScene:
                     else:
                         costume += "5"
                     opengl_manager.draw_image(costume, position, (self.cell_w, -self.cell_h))
+        for tile in self.countdown_tiles:
+            tile.render()
         opengl_manager.draw_image('finish_tile', self.grid_to_screen(self.finish + np.array([0.5, 0.5])), (self.cell_w, -self.cell_h))
         for c in range(cols):
             position = self.grid_to_screen((c + 0.5, -0.5))
@@ -367,14 +394,16 @@ class GameScene:
     def end_level(self, result):
         self.game = False
         self.hover_button = None
-        sound_manager.play_windup()
+        sound_manager.play_effect('windup')
         cy = 0.34
         left_cx = 0.5 - 0.18
         right_cx = 0.5 + 0.18
         if result:
+            sound_manager.play_effect('victory')
             opengl_manager.load_text('Level Complete', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
             right_action, right_label = 'next', 'Next Level'
         else:
+            sound_manager.play_effect('defeat')
             opengl_manager.load_text('Level Failed', (128, 128, 128), 128, (0.5, 0.5), 'end1', 10)
             right_action, right_label = 'retry', 'Try Again'
         opengl_manager.load_text('Back to Menu', (240, 235, 245), 40, (left_cx, cy), 'end_btn_left')
@@ -387,7 +416,6 @@ class GameScene:
         if self.player.speed <= 0:
             return
         moved = self.player.move(direction)
-        self.player.update_move_suggestion()
         if moved:
             self.timers[self.selected_timer].tick()
             self.player.speed = self.timers[self.selected_timer].value
@@ -395,6 +423,7 @@ class GameScene:
 class HomeScene:
     def __init__(self):
         opengl_manager.clear_images()
+        opengl_manager.load_image('logo', resource_path(f"assets/logo.png"))
         self.total_levels = 30
         self.cols = 6
         self.rows = 5
@@ -429,7 +458,6 @@ class HomeScene:
         self.play_cy = 0.13
         self.play_hw = 0.13
         self.play_hh = 0.055
-        opengl_manager.load_text('Your moves are running out', (235, 225, 240), 110, (0.5, 0.88), 'home_title')
         opengl_manager.load_text('PLAY', (40, 25, 35), 60, (self.play_cx, self.play_cy), 'home_play')
         for level, cx, cy, enabled in self.boxes:
             color = (240, 235, 245) if enabled else (150, 140, 150)
@@ -474,7 +502,7 @@ class HomeScene:
     def render(self):
         opengl_manager.clear_screen()
         opengl_manager.draw_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], self.bg_color)
-        opengl_manager.draw_text('home_title')
+        opengl_manager.draw_image('logo', (0.5, 0.9), (0.22 * 1.5, 0.109 * 1.5))
         for level, cx, cy, enabled in self.boxes:
             if not enabled:
                 fill = self.box_disabled_color
@@ -1436,10 +1464,15 @@ class Player:
             else:
                 opengl_manager.draw_image(sprite_name, position, (self.scene.cell_w, self.scene.cell_h))
         return
-    def update(self):
+    def update(self, countdown_tiles=None):
         if self.new_position is not None:
             self.move_animation += 0.04
             if self.move_animation >= 0.95:
+                if countdown_tiles is not None:
+                    for tile in countdown_tiles:
+                        if np.linalg.norm(self.new_position - self.position) == np.linalg.norm(tile.grid_position - self.position) + np.linalg.norm(tile.grid_position - self.new_position):
+                            if self.new_position[0] != tile.grid_position[0] or self.new_position[1] != tile.grid_position[1]:
+                                tile.tick()
                 self.position = self.new_position
                 self.new_position = None
                 self.move_animation = 0
@@ -1503,18 +1536,42 @@ class SoundManager:
             'move': pygame.mixer.Sound(resource_path('assets/move.wav')),
             'windup': pygame.mixer.Sound(resource_path('assets/windup.wav')),
             'ticking': pygame.mixer.Sound(resource_path('assets/ticking.wav')),
+            'cdt_tick': pygame.mixer.Sound(resource_path('assets/countdown-tile-tick.wav')),
+            'cdt_activate': pygame.mixer.Sound(resource_path('assets/countdown-tile-activate.wav')),
+            'victory': pygame.mixer.Sound(resource_path('assets/victory.wav')),
+            'defeat': pygame.mixer.Sound(resource_path('assets/defeat.wav')),
         }
         for sound in self.sound_effects.values():
             sound.set_volume(self.sfx_volume)
         self.channel = pygame.mixer.find_channel()
+        self.duck_effects = ('victory', 'defeat')
+        self.music_duck_factor = 0.1
+        self.music_restore_step = 0.01
+        self.duck_channel = None
+        self.music_ducked = False
     def start_music(self):
         pygame.mixer.music.load(resource_path('assets/sound_track.mp3'))
         pygame.mixer.music.set_volume(self.music_volume)
         pygame.mixer.music.play(-1)
     def play_move(self):
         self.channel.play(self.sound_effects['move'])
-    def play_windup(self):
-        self.sound_effects['windup'].play()
+    def play_effect(self, name):
+        channel = self.sound_effects[name].play()
+        if name in self.duck_effects:
+            self.duck_channel = channel
+            self.music_ducked = True
+            pygame.mixer.music.set_volume(self.music_volume * self.music_duck_factor)
+        return channel
+    def update_music(self):
+        if not self.music_ducked:
+            return
+        if self.duck_channel is not None and self.duck_channel.get_busy():
+            return
+        volume = min(self.music_volume, pygame.mixer.music.get_volume() + self.music_restore_step)
+        pygame.mixer.music.set_volume(volume)
+        if volume >= self.music_volume:
+            self.music_ducked = False
+            self.duck_channel = None
     def update_ticking(self, active):
         playing = self.channel.get_sound() if self.channel.get_busy() else None
         if not active:
@@ -1541,6 +1598,26 @@ class Timer:
             return 0
     def render(self, print_as_selected=False):
         opengl_manager.draw_image(("clock" + str(int(self.value)) + ("p" if print_as_selected else "")), self.position, self.size)
+class CountdownTile:
+    def __init__(self, grid_position, position, size):
+        self.position = position
+        self.grid_position = np.array(grid_position)
+        self.value = 3
+        self.become_a_wall = False
+        self.size = size
+        opengl_manager.load_text(str(self.value), (255, 255, 255), 24, self.position, f'ct{self.position}', outline=2)
+    def tick(self):
+        self.value -= 1
+        if self.value == 0:
+            self.become_a_wall = True
+            sound_manager.play_effect('cdt_activate')
+        else:
+            opengl_manager.delete_image(f'ct{self.position}')
+            opengl_manager.load_text(str(self.value), (255, 255, 255), 24, self.position, f'ct{self.position}', outline=2)
+            sound_manager.play_effect('cdt_tick')
+    def render(self):
+        opengl_manager.draw_image('countdown_tile', self.position, self.size)
+        opengl_manager.draw_text(f'ct{self.position}')
 pygame.init()
 opengl_manager.create_screen()
 pygame.display.set_caption("Your moves are running out")
@@ -1562,6 +1639,7 @@ def main():
         scene.update()
         scene.render()
         overlay_manager.render()
+        sound_manager.update_music()
         scene = scene_manager.update_scene(scene)
         pygame.display.flip()
         clock.tick_busy_loop(FPS)

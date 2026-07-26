@@ -112,10 +112,16 @@ class Player:
 
         return
 
-    def update(self):
+    def update(self, countdown_tiles=None):
         if self.new_position is not None:
             self.move_animation += 0.04
             if self.move_animation >= 0.95:
+                if countdown_tiles is not None:
+                    for tile in countdown_tiles:
+                        if np.linalg.norm(self.new_position - self.position) == np.linalg.norm(tile.grid_position - self.position) + np.linalg.norm(tile.grid_position - self.new_position):
+                            if self.new_position[0] != tile.grid_position[0] or self.new_position[1] != tile.grid_position[1]:
+                                tile.tick()
+
                 self.position = self.new_position
                 self.new_position = None
                 self.move_animation = 0

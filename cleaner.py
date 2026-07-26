@@ -11,6 +11,7 @@ FILES_TO_INCLUDE = [
     'scene_manager.py',
     'sound_manager.py',
     'timer.py',
+    'countdown_tile.py',
 ]
 
 def extract_top_level_code(file_path):
@@ -108,6 +109,8 @@ def main():
         scene.update()
         scene.render()
         overlay_manager.render()
+
+        sound_manager.update_music()
 
         scene = scene_manager.update_scene(scene)
 
