@@ -15,11 +15,13 @@ class GameScene:
     def __init__(self, level):
         opengl_manager.clear_images()
 
-        # image = pygame.image.load(resource_path(f"assets/background.png"))
-        # image = pygame.transform.scale_by(image, 4)
-        # opengl_manager.load_pygame_surface(f"background", image)
+        sound_manager.play_music('game')
 
-        for asset in ['back_to_menu', 'back_to_menu_hover', 'level_complete', 'level_failed', 'try_again', 'try_again_hover', 'next_level', 'next_level_hover', 'restart', 'restart_hover']:
+        image = pygame.image.load(resource_path(f"assets/background2.png"))
+        image = pygame.transform.scale_by(image, 4)
+        opengl_manager.load_pygame_surface(f"background", image)
+
+        for asset in ['back_to_menu', 'back_to_menu_hover', 'level_complete', 'level_failed', 'try_again', 'try_again_hover', 'next_level', 'next_level_hover', 'restart', 'restart_hover', 'hint1', 'hint2', 'hint3']:
             image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale_by(image, 4)
             opengl_manager.load_pygame_surface(f"{asset}", image)
@@ -89,7 +91,10 @@ class GameScene:
         self.countdown_tiles = np.where(self.level == 4)
         for i in range(len(self.countdown_tiles[0])):
             self.level[self.countdown_tiles[0][i], self.countdown_tiles[1][i]] = 0
-        self.countdown_tiles = [CountdownTile((self.countdown_tiles[1][i], self.countdown_tiles[0][i]), self.grid_to_screen((self.countdown_tiles[1][i] + 0.5, self.countdown_tiles[0][i] + 0.5)), (self.cell_w, self.cell_h)) for i in range(len(self.countdown_tiles[0]))]
+        self.countdown_tiles_values = levels[str(level)].get('countdown_tiles', [])
+        if len(self.countdown_tiles_values) < len(self.countdown_tiles[0]):
+            self.countdown_tiles_values = self.countdown_tiles_values + [5] * (len(self.countdown_tiles[0]) - len(self.countdown_tiles_values))
+        self.countdown_tiles = [CountdownTile((self.countdown_tiles[1][i], self.countdown_tiles[0][i]), self.grid_to_screen((self.countdown_tiles[1][i] + 0.5, self.countdown_tiles[0][i] + 0.5)), (self.cell_w, self.cell_h), self.countdown_tiles_values[i]) for i in range(len(self.countdown_tiles[0]))]
 
         self.player = Player(self.start, self)
 
@@ -128,6 +133,23 @@ class GameScene:
         self.restart_hw = restart_w / 2
         self.restart_hh = restart_h / 2
         self.hover_restart = False
+
+        # Hint popups (stacked in the top-left corner), shown only on specific levels.
+        hint_px = {'hint1': (134, 92), 'hint2': (134, 106), 'hint3': (154, 82)}
+        hint_levels = {1: ['hint1', 'hint2'], 2: ['hint1', 'hint2'], 13: ['hint3'], 14: ['hint3']}
+
+        hint_w = 0.14
+        left_x = 0.035
+        top_y = 0.86
+        gap = 0.02
+        self.hints = []
+        for name in hint_levels.get(level, []):
+            w_px, h_px = hint_px[name]
+            hint_h = hint_w * (h_px / w_px) * (16 / 9)
+            cx = left_x + hint_w / 2
+            cy = top_y - hint_h / 2
+            self.hints.append((name, (cx, cy), (hint_w, hint_h)))
+            top_y -= hint_h + gap
 
 
 
@@ -282,11 +304,11 @@ class GameScene:
     def render(self):
         opengl_manager.clear_screen()
 
-        opengl_manager.draw_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], (0.271, 0.157, 0.235, 1))
+        # opengl_manager.draw_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], (0.271, 0.157, 0.235, 1))
 
-        # mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
-        # offset = np.array([0.5, 0.5]) - mouse
-        # opengl_manager.draw_image('background', np.array([0.5, 0.5]) + offset / 10, (1.1, 1.1))
+        mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+        offset = np.array([0.5, 0.5]) - mouse
+        opengl_manager.draw_image('background', np.array([0.5, 0.5]) + offset / 10, (1.1, 1.1))
 
         # Render grid
         rows, cols = self.level.shape
@@ -491,6 +513,9 @@ class GameScene:
         if self.game:
             restart_image = 'restart_hover' if self.hover_restart else 'restart'
             opengl_manager.draw_image(restart_image, (self.restart_cx, self.restart_cy), self.restart_size)
+
+            for name, pos, size in self.hints:
+                opengl_manager.draw_image(name, pos, size)
 
         if not self.game:
             opengl_manager.draw_image(self.end_title, (0.5, 0.55), self.end_title_size)

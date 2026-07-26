@@ -25,7 +25,11 @@ def set_levels_completed(value):
 class GameScene:
     def __init__(self, level):
         opengl_manager.clear_images()
-        for asset in ['back_to_menu', 'back_to_menu_hover', 'level_complete', 'level_failed', 'try_again', 'try_again_hover', 'next_level', 'next_level_hover', 'restart', 'restart_hover']:
+        sound_manager.play_music('game')
+        image = pygame.image.load(resource_path(f"assets/background2.png"))
+        image = pygame.transform.scale_by(image, 4)
+        opengl_manager.load_pygame_surface(f"background", image)
+        for asset in ['back_to_menu', 'back_to_menu_hover', 'level_complete', 'level_failed', 'try_again', 'try_again_hover', 'next_level', 'next_level_hover', 'restart', 'restart_hover', 'hint1', 'hint2', 'hint3']:
             image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale_by(image, 4)
             opengl_manager.load_pygame_surface(f"{asset}", image)
@@ -80,7 +84,10 @@ class GameScene:
         self.countdown_tiles = np.where(self.level == 4)
         for i in range(len(self.countdown_tiles[0])):
             self.level[self.countdown_tiles[0][i], self.countdown_tiles[1][i]] = 0
-        self.countdown_tiles = [CountdownTile((self.countdown_tiles[1][i], self.countdown_tiles[0][i]), self.grid_to_screen((self.countdown_tiles[1][i] + 0.5, self.countdown_tiles[0][i] + 0.5)), (self.cell_w, self.cell_h)) for i in range(len(self.countdown_tiles[0]))]
+        self.countdown_tiles_values = levels[str(level)].get('countdown_tiles', [])
+        if len(self.countdown_tiles_values) < len(self.countdown_tiles[0]):
+            self.countdown_tiles_values = self.countdown_tiles_values + [5] * (len(self.countdown_tiles[0]) - len(self.countdown_tiles_values))
+        self.countdown_tiles = [CountdownTile((self.countdown_tiles[1][i], self.countdown_tiles[0][i]), self.grid_to_screen((self.countdown_tiles[1][i] + 0.5, self.countdown_tiles[0][i] + 0.5)), (self.cell_w, self.cell_h), self.countdown_tiles_values[i]) for i in range(len(self.countdown_tiles[0]))]
         self.player = Player(self.start, self)
         self.selected_timer = 0
         timer_values = levels[str(level)]['timers']
@@ -110,6 +117,20 @@ class GameScene:
         self.restart_hw = restart_w / 2
         self.restart_hh = restart_h / 2
         self.hover_restart = False
+        hint_px = {'hint1': (134, 92), 'hint2': (134, 106), 'hint3': (154, 82)}
+        hint_levels = {1: ['hint1', 'hint2'], 2: ['hint1', 'hint2'], 7: ['hint3'], 8: ['hint3']}
+        hint_w = 0.14
+        left_x = 0.035
+        top_y = 0.86
+        gap = 0.02
+        self.hints = []
+        for name in hint_levels.get(level, []):
+            w_px, h_px = hint_px[name]
+            hint_h = hint_w * (h_px / w_px) * (16 / 9)
+            cx = left_x + hint_w / 2
+            cy = top_y - hint_h / 2
+            self.hints.append((name, (cx, cy), (hint_w, hint_h)))
+            top_y -= hint_h + gap
     def calculate_grid(self):
         rows, cols = self.level.shape
         rows += 5
@@ -230,7 +251,9 @@ class GameScene:
         sound_manager.update_ticking(self.game)
     def render(self):
         opengl_manager.clear_screen()
-        opengl_manager.draw_polygon([(0, 0), (1, 0), (1, 1), (0, 1)], (0.271, 0.157, 0.235, 1))
+        mouse = opengl_manager.convert_mouse(pygame.mouse.get_pos())
+        offset = np.array([0.5, 0.5]) - mouse
+        opengl_manager.draw_image('background', np.array([0.5, 0.5]) + offset / 10, (1.1, 1.1))
         rows, cols = self.level.shape
         for r in range(rows-1, -1, -1):
             for c in range(cols):
@@ -394,6 +417,8 @@ class GameScene:
         if self.game:
             restart_image = 'restart_hover' if self.hover_restart else 'restart'
             opengl_manager.draw_image(restart_image, (self.restart_cx, self.restart_cy), self.restart_size)
+            for name, pos, size in self.hints:
+                opengl_manager.draw_image(name, pos, size)
         if not self.game:
             opengl_manager.draw_image(self.end_title, (0.5, 0.55), self.end_title_size)
             for action, cx, cy, image in self.end_buttons:
@@ -443,6 +468,7 @@ class GameScene:
 class HomeScene:
     def __init__(self):
         opengl_manager.clear_images()
+        sound_manager.play_music('menu')
         for asset in ['logo', 'level_box', 'level_box_selected', 'level_box_locked', 'play', 'play-hover', 'background', 'volume_icon', 'volume_slider', 'volume_slider_pip']:
             image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale_by(image, 4)
@@ -452,8 +478,11 @@ class HomeScene:
         self.rows = 5
         self.level_box_size = (0.05, 0.05 * 16 / 9)
         self.bg_color = (0.271, 0.157, 0.235, 1)
-        self.max_level = get_levels_completed() + 1
-        self.selected = get_levels_completed() + 1
+        level_numbers = sorted(int(k) for k in levels)
+        self.next_to_complete = get_levels_completed() + 1
+        if self.next_to_complete not in level_numbers:
+            self.next_to_complete = level_numbers[-1]
+        self.selected = self.next_to_complete
         self.change_scene = None
         self.next_level = self.selected
         self.hover_play = False
@@ -464,14 +493,13 @@ class HomeScene:
         row_step = 0.10
         self.box_hw = 0.06
         self.box_hh = 0.042
-        for level in sorted(int(k) for k in levels):
+        for level in level_numbers:
             slot = level - 1
             col = slot % self.cols
             row = slot // self.cols
             cx = left_x + (right_x - left_x) * col / (self.cols - 1)
             cy = top_y - row * row_step
-            unlocked = level <= self.max_level
-            self.boxes.append((level, cx, cy, unlocked))
+            self.boxes.append((level, cx, cy))
         play_h = 0.16
         play_w = play_h * (56 / 24) * (9 / 16)
         self.play_size = (play_w, play_h)
@@ -482,16 +510,16 @@ class HomeScene:
         self.vol_y = 0.07
         slider_w = 0.13
         slider_h = slider_w / ((41 / 8) * (9 / 16))
-        icon_h = 0.05
+        icon_h = 0.08
         icon_w = icon_h * ((11 / 14) * (9 / 16))
-        pip_h = 0.032
+        pip_h = 0.022
         pip_w = pip_h * ((4 / 4) * (9 / 16))
         self.slider_size = (slider_w, slider_h)
         self.icon_size = (icon_w, icon_h)
         self.pip_size = (pip_w, pip_h)
         self.slider_cx = 0.90
-        track_left = self.slider_cx - slider_w / 2
-        track_right = self.slider_cx + slider_w / 2
+        track_left = self.slider_cx - slider_w / 2 + 0.008
+        track_right = self.slider_cx + slider_w / 2 - 0.008
         self.vol_x_min = track_left + pip_w / 2
         self.vol_x_max = track_right - pip_w / 2
         self.icon_cx = track_left - 0.02 - icon_w / 2
@@ -499,9 +527,8 @@ class HomeScene:
         self.vol_hit_hh = 0.035
         self.volume = sound_manager.music_volume
         self.dragging = False
-        for level, cx, cy, unlocked in self.boxes:
-            color = (240, 235, 245) if unlocked else (150, 140, 150)
-            opengl_manager.load_text(str(level), color, 34, (cx, cy), f'home_lvl_{level}')
+        for level, cx, cy in self.boxes:
+            opengl_manager.load_text(str(level), (240, 235, 245), 34, (cx, cy), f'home_lvl_{level}')
         self.frame = 0
     def _hit(self, cx, cy, hw, hh, mouse):
         return cx - hw <= mouse[0] <= cx + hw and cy - hh <= mouse[1] <= cy + hh
@@ -537,8 +564,8 @@ class HomeScene:
                     self.next_level = self.selected
                     self.change_scene = 'game'
                     return 1
-                for level, cx, cy, unlocked in self.boxes:
-                    if unlocked and self._hit(cx, cy, self.box_hw, self.box_hh, mouse):
+                for level, cx, cy in self.boxes:
+                    if self._hit(cx, cy, self.box_hw, self.box_hh, mouse):
                         self.selected = level
                         self.next_level = level
                         self.change_scene = 'game'
@@ -552,13 +579,8 @@ class HomeScene:
         offset = np.array([0.5, 0.5]) - mouse
         opengl_manager.draw_image('background', np.array([0.5, 0.5]) + offset / 10, (1.1, 1.1))
         opengl_manager.draw_image('logo', (0.5, 0.85), (0.22 * 1.5, 0.109 * 1.5))
-        for level, cx, cy, unlocked in self.boxes:
-            if not unlocked:
-                image = 'level_box_locked'
-            elif level == self.selected:
-                image = 'level_box_selected'
-            else:
-                image = 'level_box'
+        for level, cx, cy in self.boxes:
+            image = 'level_box_selected' if level == self.selected else 'level_box'
             opengl_manager.draw_image(image, (cx, cy), self.level_box_size)
             opengl_manager.draw_text(f'home_lvl_{level}')
         play_image = 'play-hover' if self.hover_play else 'play'
@@ -569,6 +591,7 @@ class HomeScene:
         opengl_manager.draw_image('volume_slider_pip', (pip_x, self.vol_y), self.pip_size)
 levels = {
 '1': {'timers': [6],
+'countdown_tiles': [],
 'grid': [
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -582,6 +605,7 @@ levels = {
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
 '2': {'timers': [8],
+'countdown_tiles': [],
 'grid': [
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -595,32 +619,7 @@ levels = {
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
 '3': {'timers': [8],
-'grid': [
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
-[1, 1, 0, 1, 1, 0, 1, 1, 0, 1],
-[1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
-[1, 1, 0, 0, 3, 1, 1, 1, 0, 1],
-[1, 1, 0, 0, 1, 1, 0, 1, 0, 1],
-[1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
-[1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
-[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-]},
-'4': {'timers': [6],
-'grid': [
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
-[0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
-[0, 0, 2, 0, 0, 3, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 1, 0, 1, 1, 0, 0],
-[0, 0, 0, 0, 1, 1, 1, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-]},
-'5': {'timers': [8],
+'countdown_tiles': [],
 'grid': [
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 2, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -633,33 +632,22 @@ levels = {
 [1, 0, 0, 1, 1, 1, 1, 0, 3, 0],
 [1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ]},
-'6': {'timers': [8],
+'4': {'timers': [8],
+'countdown_tiles': [],
 'grid': [
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 3, 0, 1, 1, 1, 1, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 0, 0, 0, 1, 1, 0, 0],
-[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 0, 1, 0, 1, 1, 0, 0],
-[0, 0, 1, 0, 1, 0, 1, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-]},
-'7': {'timers': [8],
-'grid': [
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 1, 1, 0, 0, 3, 0],
-[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-[0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 0, 1, 1, 1, 1, 1, 0, 1],
+[1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+[1, 1, 0, 0, 3, 1, 1, 1, 0, 1],
+[1, 1, 0, 0, 1, 1, 0, 1, 0, 1],
+[1, 1, 0, 0, 0, 0, 0, 1, 0, 1],
+[1, 1, 1, 0, 0, 0, 0, 0, 0, 1],
+[2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
-'8': {'timers': [8],
+'5': {'timers': [8],
+'countdown_tiles': [],
 'grid': [
 [2, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 [0, 0, 0, 0, 0, 1, 0, 0, 0, 1],
@@ -672,20 +660,8 @@ levels = {
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
-'9': {'timers': [8],
-'grid': [
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 1, 1, 1, 1, 0, 0, 0],
-[0, 0, 1, 3, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 0, 0, 1, 1, 1, 0, 0],
-[0, 0, 1, 0, 0, 1, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 1, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-]},
-'10': {'timers': [8],
+'6': {'timers': [8],
+'countdown_tiles': [],
 'grid': [
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 [0, 2, 0, 0, 0, 0, 0, 0, 0, 0],
@@ -698,7 +674,92 @@ levels = {
 [0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
 [0, 0, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
-'11': {'timers': [3, 2, 1],
+'7': {'timers': [6],
+'countdown_tiles': [2],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 0, 1, 1, 0, 1, 1, 1],
+[1, 1, 1, 0, 1, 1, 0, 1, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 2, 0, 0, 3, 4, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'8': {'timers': [6],
+'countdown_tiles': [3],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 0, 2, 0, 4, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 1, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'9': {'timers': [6],
+'countdown_tiles': [1],
+'grid': [
+[1, 1, 1, 1, 0, 0, 0, 0, 1, 1],
+[1, 2, 0, 0, 3, 0, 4, 0, 1, 1],
+[1, 0, 1, 1, 1, 1, 0, 0, 1, 1],
+[1, 0, 1, 1, 1, 1, 0, 0, 1, 1],
+[1, 0, 1, 1, 1, 1, 0, 0, 1, 1],
+[1, 0, 1, 1, 1, 1, 0, 0, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'10': {'timers': [6],
+'countdown_tiles': [1],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 0, 2, 0, 0, 0, 4, 0, 0, 1],
+[1, 0, 0, 0, 3, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 4, 0, 0, 4, 0, 1],
+[1, 0, 0, 0, 0, 4, 0, 0, 0, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'11': {'timers': [6],
+'countdown_tiles': [1],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+[1, 1, 1, 1, 1, 0, 0, 1, 0, 0],
+[1, 1, 2, 0, 0, 3, 0, 4, 0, 0],
+[1, 1, 0, 0, 0, 0, 0, 4, 0, 0],
+[1, 1, 1, 1, 1, 0, 0, 1, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 0, 0],
+]},
+'12': {'timers': [6],
+'countdown_tiles': [1],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 0, 0, 1, 1, 1, 1, 0, 0, 1],
+[1, 0, 0, 1, 1, 1, 1, 0, 0, 1],
+[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+[1, 0, 0, 0, 1, 1, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+[1, 0, 0, 0, 0, 4, 0, 0, 0, 1],
+[1, 0, 2, 0, 4, 3, 4, 0, 0, 1],
+[1, 1, 0, 0, 0, 4, 0, 0, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'13': {'timers': [3, 2, 1],
+'countdown_tiles': [],
 'grid': [
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
@@ -711,7 +772,22 @@ levels = {
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
-'12': {'timers': [4, 3, 2, 1],
+'14': {'timers': [4, 3, 2, 1],
+'countdown_tiles': [],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 3, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 0, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 1, 1],
+[1, 0, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
+[2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]},
+'15': {'timers': [5, 4, 3, 2, 1],
+'countdown_tiles': [],
 'grid': [
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
@@ -724,63 +800,40 @@ levels = {
 [1, 0, 0, 0, 0, 0, 0, 0, 0, 1],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
-'13': {'timers': [5, 4, 3, 2, 1],
+'16': {'timers': [5, 4, 3, 2, 1],
+'countdown_tiles': [],
 'grid': [
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 3, 0, 0, 0, 0, 0, 0, 0],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 0],
-[2, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[0, 0, 0, 1, 1, 1, 1, 1, 1, 1],
+[0, 1, 0, 1, 1, 1, 1, 1, 1, 1],
+[0, 1, 0, 1, 0, 0, 0, 1, 1, 1],
+[0, 1, 0, 1, 0, 1, 0, 1, 1, 1],
+[0, 1, 0, 1, 0, 1, 0, 1, 1, 1],
+[0, 1, 0, 1, 0, 1, 0, 0, 1, 1],
+[0, 1, 0, 1, 0, 1, 1, 0, 3, 1],
+[0, 1, 0, 1, 0, 1, 1, 1, 1, 1],
+[0, 1, 0, 0, 0, 1, 1, 1, 1, 1],
+[2, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
-'14': {'timers': [4, 3, 2],
+'17': {'timers': [4, 3, 2],
+'countdown_tiles': [],
 'grid': [
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+[0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
 [0, 0, 0, 2, 1, 1, 3, 0, 0, 0],
-[0, 0, 0, 1, 1, 1, 1, 0, 0, 0],
+[0, 0, 1, 1, 1, 1, 1, 1, 0, 0],
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
+[0, 0, 0, 0, 1, 1, 0, 0, 0, 0],
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
-'15': {'timers': [3, 3, 3],
-'grid': [
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 2, 1, 1, 1, 1, 1],
-[1, 1, 0, 0, 0, 1, 1, 1, 1, 1],
-[1, 1, 0, 1, 0, 1, 1, 1, 1, 1],
-[1, 1, 0, 1, 0, 0, 0, 1, 1, 1],
-[1, 1, 0, 0, 0, 1, 0, 0, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 3, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-]},
-'16': {'timers': [4, 4, 4],
-'grid': [
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 0, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 0, 1, 1, 0, 3, 1],
-[1, 1, 0, 2, 0, 0, 0, 0, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
-]},
-'17': {'timers': [6, 6],
+'18': {'timers': [6, 6],
+'countdown_tiles': [],
 'grid': [
 [1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 [1, 1, 1, 1, 2, 3, 1, 1, 1, 1],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 1, 0, 0, 1, 0, 0, 0],
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 [0, 1, 1, 1, 0, 0, 1, 1, 1, 0],
 [0, 1, 1, 1, 0, 0, 1, 1, 1, 0],
@@ -788,6 +841,34 @@ levels = {
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+]},
+'19': {'timers': [3, 3, 3],
+'countdown_tiles': [2],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 0, 0, 2, 1, 1, 1, 1, 1],
+[1, 1, 0, 1, 0, 1, 1, 3, 1, 1],
+[1, 1, 0, 1, 0, 1, 0, 0, 1, 1],
+[1, 1, 0, 0, 4, 0, 0, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+]},
+'20': {'timers': [4, 4, 4],
+'countdown_tiles': [2, 5],
+'grid': [
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 4, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 0, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 0, 1, 1, 1, 0, 3, 1],
+[1, 1, 0, 2, 0, 0, 4, 0, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
+[1, 1, 1, 1, 1, 1, 1, 1, 1, 1],
 ]},
 }
 class OpenglManager:
@@ -1399,9 +1480,9 @@ class OverlayManager:
             button1 = (self.ec_position[0] + self.ec_button_offset[0], self.ec_position[1] + self.ec_button_offset[1])
             button2 = (self.ec_position[0] - self.ec_button_offset[0], self.ec_position[1] + self.ec_button_offset[1])
             button_width, button_height = self.ec_button_size
-            bg_color = (0.08, 0.09, 0.11, 0.98)
-            border_color = (0.3, 0.35, 0.4, 1.0)
-            button_color = (0.12, 0.14, 0.18, 1.0)
+            bg_color = (1, 1, 1, 0.7)
+            border_color = (0, 0, 0, 1.0)
+            button_color = (0, 0, 0, 1.0)
             opengl_manager.draw_lines([(right, top), (left, top), (left, bottom), (right, bottom)], bg_color, 0, True)
             opengl_manager.draw_lines([(right, top), (left, top), (left, bottom), (right, bottom)], border_color, 10, True)
             if 'ec_title' in opengl_manager.textures:
@@ -1428,7 +1509,7 @@ class OverlayManager:
         self.ec_open = True
         self.steal_events = True
         self.ec_action = action
-        opengl_manager.load_text(f'Do you want to {text}?', (255, 255, 255), self.ec_text_size, (0, 0), 'ec_title', width_limit=self.ec_size[0] * 0.9)
+        opengl_manager.load_text(f'Do you want to {text}?', (0, 0, 0), self.ec_text_size, (0, 0), 'ec_title', width_limit=self.ec_size[0] * 0.9, outline=1)
         opengl_manager.load_text('Yes', (255, 255, 255), self.ec_text_size, (0, 0), 'ec_yes')
         opengl_manager.load_text('No', (255, 255, 255), self.ec_text_size, (0, 0), 'ec_no')
     def close_ec(self):
@@ -1602,8 +1683,13 @@ class SoundManager:
         for sound in self.sound_effects.values():
             sound.set_volume(self.sfx_volume)
         self.channel = pygame.mixer.find_channel()
+        self.music_tracks = {
+            'menu': 'assets/soundtrack_menu.mp3',
+            'game': 'assets/soundtrack.mp3',
+        }
+        self.current_track = None
         self.duck_effects = ('victory', 'defeat')
-        self.music_duck_factor = 0.1
+        self.music_duck_factor = 1
         self.music_restore_step = 0.01
         self.duck_channel = None
         self.music_ducked = False
@@ -1615,7 +1701,12 @@ class SoundManager:
         for sound in self.sound_effects.values():
             sound.set_volume(self.sfx_volume)
     def start_music(self):
-        pygame.mixer.music.load(resource_path('assets/sound_track.mp3'))
+        self.play_music('menu')
+    def play_music(self, track):
+        if track == self.current_track:
+            return
+        self.current_track = track
+        pygame.mixer.music.load(resource_path(self.music_tracks[track]))
         pygame.mixer.music.set_volume(self.music_volume)
         pygame.mixer.music.play(-1)
     def play_move(self):
@@ -1664,10 +1755,10 @@ class Timer:
     def render(self, print_as_selected=False):
         opengl_manager.draw_image(("clock" + str(int(self.value)) + ("p" if print_as_selected else "")), self.position, self.size)
 class CountdownTile:
-    def __init__(self, grid_position, position, size):
+    def __init__(self, grid_position, position, size, value):
         self.position = position
         self.grid_position = np.array(grid_position)
-        self.value = 3
+        self.value = value
         self.become_a_wall = False
         self.size = size
         opengl_manager.load_text(str(self.value), (255, 255, 255), 24, self.position, f'ct{self.position}', outline=2)

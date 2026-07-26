@@ -13,6 +13,8 @@ class HomeScene:
     def __init__(self):
         opengl_manager.clear_images()
 
+        sound_manager.play_music('menu')
+
         for asset in ['logo', 'level_box', 'level_box_selected', 'level_box_locked', 'play', 'play-hover', 'background', 'volume_icon', 'volume_slider', 'volume_slider_pip']:
             image = pygame.image.load(resource_path(f"assets/{asset}.png"))
             image = pygame.transform.scale_by(image, 4)
@@ -26,8 +28,14 @@ class HomeScene:
 
         self.bg_color = (0.271, 0.157, 0.235, 1)
 
-        self.max_level = get_levels_completed() + 1
-        self.selected = get_levels_completed() + 1
+        level_numbers = sorted(int(k) for k in levels)
+
+        # The next level to complete (highlighted in the menu). Every level is
+        # playable; this is purely which box is shown as selected by default.
+        self.next_to_complete = get_levels_completed() + 1
+        if self.next_to_complete not in level_numbers:
+            self.next_to_complete = level_numbers[-1]
+        self.selected = self.next_to_complete
 
         self.change_scene = None
         self.next_level = self.selected
@@ -42,14 +50,13 @@ class HomeScene:
         self.box_hw = 0.06
         self.box_hh = 0.042
 
-        for level in sorted(int(k) for k in levels):
+        for level in level_numbers:
             slot = level - 1
             col = slot % self.cols
             row = slot // self.cols
             cx = left_x + (right_x - left_x) * col / (self.cols - 1)
             cy = top_y - row * row_step
-            unlocked = level <= self.max_level
-            self.boxes.append((level, cx, cy, unlocked))
+            self.boxes.append((level, cx, cy))
 
         play_h = 0.16
         play_w = play_h * (56 / 24) * (9 / 16)
@@ -63,17 +70,17 @@ class HomeScene:
         self.vol_y = 0.07
         slider_w = 0.13
         slider_h = slider_w / ((41 / 8) * (9 / 16))
-        icon_h = 0.05
+        icon_h = 0.08
         icon_w = icon_h * ((11 / 14) * (9 / 16))
-        pip_h = 0.032
+        pip_h = 0.022
         pip_w = pip_h * ((4 / 4) * (9 / 16))
         self.slider_size = (slider_w, slider_h)
         self.icon_size = (icon_w, icon_h)
         self.pip_size = (pip_w, pip_h)
 
         self.slider_cx = 0.90
-        track_left = self.slider_cx - slider_w / 2
-        track_right = self.slider_cx + slider_w / 2
+        track_left = self.slider_cx - slider_w / 2 + 0.008
+        track_right = self.slider_cx + slider_w / 2 - 0.008
         self.vol_x_min = track_left + pip_w / 2
         self.vol_x_max = track_right - pip_w / 2
         self.icon_cx = track_left - 0.02 - icon_w / 2
@@ -84,9 +91,8 @@ class HomeScene:
         self.volume = sound_manager.music_volume
         self.dragging = False
 
-        for level, cx, cy, unlocked in self.boxes:
-            color = (240, 235, 245) if unlocked else (150, 140, 150)
-            opengl_manager.load_text(str(level), color, 34, (cx, cy), f'home_lvl_{level}')
+        for level, cx, cy in self.boxes:
+            opengl_manager.load_text(str(level), (240, 235, 245), 34, (cx, cy), f'home_lvl_{level}')
 
         self.frame = 0
 
@@ -131,8 +137,8 @@ class HomeScene:
                     self.next_level = self.selected
                     self.change_scene = 'game'
                     return 1
-                for level, cx, cy, unlocked in self.boxes:
-                    if unlocked and self._hit(cx, cy, self.box_hw, self.box_hh, mouse):
+                for level, cx, cy in self.boxes:
+                    if self._hit(cx, cy, self.box_hw, self.box_hh, mouse):
                         self.selected = level
                         self.next_level = level
                         self.change_scene = 'game'
@@ -153,13 +159,8 @@ class HomeScene:
 
         opengl_manager.draw_image('logo', (0.5, 0.85), (0.22 * 1.5, 0.109 * 1.5))
 
-        for level, cx, cy, unlocked in self.boxes:
-            if not unlocked:
-                image = 'level_box_locked'
-            elif level == self.selected:
-                image = 'level_box_selected'
-            else:
-                image = 'level_box'
+        for level, cx, cy in self.boxes:
+            image = 'level_box_selected' if level == self.selected else 'level_box'
             opengl_manager.draw_image(image, (cx, cy), self.level_box_size)
             opengl_manager.draw_text(f'home_lvl_{level}')
 

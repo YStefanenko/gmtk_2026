@@ -4,10 +4,10 @@ from sound_manager import sound_manager
 
 
 class CountdownTile:
-    def __init__(self, grid_position, position, size):
+    def __init__(self, grid_position, position, size, value):
         self.position = position
         self.grid_position = np.array(grid_position)
-        self.value = 3
+        self.value = value
         self.become_a_wall = False
         self.size = size
         opengl_manager.load_text(str(self.value), (255, 255, 255), 24, self.position, f'ct{self.position}', outline=2)

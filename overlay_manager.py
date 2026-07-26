@@ -85,9 +85,9 @@ class OverlayManager:
             button2 = (self.ec_position[0] - self.ec_button_offset[0], self.ec_position[1] + self.ec_button_offset[1])
             button_width, button_height = self.ec_button_size
 
-            bg_color = (0.08, 0.09, 0.11, 0.98)
-            border_color = (0.3, 0.35, 0.4, 1.0)
-            button_color = (0.12, 0.14, 0.18, 1.0)
+            bg_color = (1, 1, 1, 0.7)
+            border_color = (0, 0, 0, 1.0)
+            button_color = (0, 0, 0, 1.0)
 
             opengl_manager.draw_lines([(right, top), (left, top), (left, bottom), (right, bottom)], bg_color, 0, True)
             opengl_manager.draw_lines([(right, top), (left, top), (left, bottom), (right, bottom)], border_color, 10, True)
@@ -121,7 +121,7 @@ class OverlayManager:
         self.steal_events = True
         self.ec_action = action
 
-        opengl_manager.load_text(f'Do you want to {text}?', (255, 255, 255), self.ec_text_size, (0, 0), 'ec_title', width_limit=self.ec_size[0] * 0.9)
+        opengl_manager.load_text(f'Do you want to {text}?', (0, 0, 0), self.ec_text_size, (0, 0), 'ec_title', width_limit=self.ec_size[0] * 0.9, outline=1)
         opengl_manager.load_text('Yes', (255, 255, 255), self.ec_text_size, (0, 0), 'ec_yes')
         opengl_manager.load_text('No', (255, 255, 255), self.ec_text_size, (0, 0), 'ec_no')
 

@@ -23,8 +23,14 @@ class SoundManager:
 
         self.channel = pygame.mixer.find_channel()
 
+        self.music_tracks = {
+            'menu': 'assets/soundtrack_menu.mp3',
+            'game': 'assets/soundtrack.mp3',
+        }
+        self.current_track = None
+
         self.duck_effects = ('victory', 'defeat')
-        self.music_duck_factor = 0.1
+        self.music_duck_factor = 1
         self.music_restore_step = 0.01
         self.duck_channel = None
         self.music_ducked = False
@@ -38,7 +44,13 @@ class SoundManager:
             sound.set_volume(self.sfx_volume)
 
     def start_music(self):
-        pygame.mixer.music.load(resource_path('assets/sound_track.mp3'))
+        self.play_music('menu')
+
+    def play_music(self, track):
+        if track == self.current_track:
+            return
+        self.current_track = track
+        pygame.mixer.music.load(resource_path(self.music_tracks[track]))
         pygame.mixer.music.set_volume(self.music_volume)
         pygame.mixer.music.play(-1)
 
