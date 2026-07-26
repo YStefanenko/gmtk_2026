@@ -25,7 +25,7 @@ color_map = {
 
 }
 
-for i in range(21, 22):
+for i in range(22, 23):
     grid = image_to_grid(f"level-{i}.png", color_map)
     print(f"'{i}': {'{'}'timers': [], ")
     print(f"'countdown_tiles': [], ")
